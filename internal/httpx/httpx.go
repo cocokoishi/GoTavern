@@ -103,10 +103,26 @@ func IsFresh(r *http.Request, etag string) bool {
 	return false
 }
 
+// WriteJSONBytesForRequest is WriteJSONBytes with the pinned HEAD contract: a HEAD response carries the
+// representation headers (Content-Type, Content-Length, ETag) and NO body. net/http discards writes on a
+// real HEAD response, but the handler-level oracle compares the bytes the HANDLER produced, and a handler
+// that writes a body on HEAD diverges from express's `res.send` there. Callers that serve both GET and HEAD
+// must use this instead of WriteJSONBytes.
+func WriteJSONBytesForRequest(w http.ResponseWriter, r *http.Request, status int, body []byte) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("ETag", WeakETag(body))
+	w.WriteHeader(status)
+	if r == nil || r.Method != http.MethodHead {
+		_, _ = w.Write(body)
+	}
+}
+
 // WriteJSONBytesConditional is WriteJSONBytes with the pinned stack's freshness check in front of it: a
 // conditional GET/HEAD whose validator matches the body's weak ETag receives the 304 face (ETag preserved,
 // NO Content-Type and NO Content-Length because there is no representation), exactly as express's `res.send`
-// answers the pinned route. Every other request takes the unchanged WriteJSONBytes path.
+// answers the pinned route. Every other request takes the WriteJSONBytesForRequest path (headers always,
+// no body on HEAD).
 func WriteJSONBytesConditional(w http.ResponseWriter, r *http.Request, status int, body []byte) {
 	etag := WeakETag(body)
 	if status == http.StatusOK && IsFresh(r, etag) {
@@ -119,7 +135,7 @@ func WriteJSONBytesConditional(w http.ResponseWriter, r *http.Request, status in
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
-	WriteJSONBytes(w, status, body)
+	WriteJSONBytesForRequest(w, r, status, body)
 }
 
 // dropAcceptEncodingVary removes the Accept-Encoding token from Vary, leaving the other Vary tokens (and deleting

@@ -72,6 +72,33 @@ func TestA20SocketCloseWatcherFiresOnlyWhileTheResponseIsOpen(t *testing.T) {
 		}
 	})
 
+	t.Run("a completion on an already-cancelled context fires the side effect", func(t *testing.T) {
+		// The CI-measured flake: cancelling the request also unblocks the handler's outbound call, so
+		// the handler can return and call end() before the watcher goroutine observes Done. end() must
+		// recognise that completion as the disconnect and fire the pinned side effect.
+		ctx, cancel := context.WithCancel(context.Background())
+		request := httptest.NewRequest("POST", "/api/sd/generate", nil).WithContext(ctx)
+		delivered := make(chan struct{}, 2)
+		watcher := watchPinnedSocketClose(request, func() {
+			delivered <- struct{}{}
+		})
+		cancel()
+		watcher.end()
+		select {
+		case <-delivered:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("end() on an already-cancelled context did not fire the pinned side effect; a client " +
+				"that disconnected before the watcher goroutine ran would never send the interrupt")
+		}
+		// end() is safe to call again and the two paths (goroutine, end) share one fire-once gate.
+		watcher.end()
+		select {
+		case <-delivered:
+			t.Fatalf("the side effect was delivered twice; pinned sends one interrupt per close")
+		case <-time.After(50 * time.Millisecond):
+		}
+	})
+
 	t.Run("a nil Done channel arms nothing and end is safe", func(t *testing.T) {
 		request := httptest.NewRequest("POST", "/api/sd/generate", nil) // context.Background(): Done() == nil
 		watcher := watchPinnedSocketClose(request, func() {

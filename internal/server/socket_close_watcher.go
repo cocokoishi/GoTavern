@@ -31,6 +31,8 @@ package server
 // context.Background or a test recorder), and a cancelled-then-ended watcher still exits exactly once.
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -41,6 +43,9 @@ type pinnedSocketCloseWatcher struct {
 	finished chan struct{}
 	ended    atomic.Bool
 	once     sync.Once
+	ctx      context.Context
+	onClose  func()
+	fireOnce sync.Once
 }
 
 // watchPinnedSocketClose arms onClose for the moment the request's context is cancelled while the
@@ -61,7 +66,7 @@ func watchPinnedSocketClose(request *http.Request, onClose func()) *pinnedSocket
 		// not replay an event to a listener added afterwards: there is nothing left to wait for.
 		return nil
 	}
-	watcher := &pinnedSocketCloseWatcher{finished: make(chan struct{})}
+	watcher := &pinnedSocketCloseWatcher{finished: make(chan struct{}), ctx: ctx, onClose: onClose}
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -69,7 +74,7 @@ func watchPinnedSocketClose(request *http.Request, onClose func()) *pinnedSocket
 			// context only after that, so a cancellation observed with `ended` set cannot be a
 			// client disconnect: it is the end of a response that was sent.
 			if !watcher.ended.Load() {
-				onClose()
+				watcher.fire()
 			}
 		case <-watcher.finished:
 		}
@@ -77,13 +82,35 @@ func watchPinnedSocketClose(request *http.Request, onClose func()) *pinnedSocket
 	return watcher
 }
 
+// fire invokes the pinned side effect exactly once. It is the only path to onClose, so the watcher
+// goroutine and end() can race without sending the interrupt twice.
+func (watcher *pinnedSocketCloseWatcher) fire() {
+	if watcher == nil || watcher.onClose == nil {
+		return
+	}
+	watcher.fireOnce.Do(watcher.onClose)
+}
+
 // end publishes "the response has ended" and releases the watcher goroutine. Safe to call on a nil
 // watcher and safe to call more than once (only the first call has an effect).
+//
+// A CLIENT DISCONNECT CAN OUTRUN THE WATCHER GOROUTINE. Cancelling the request context also unblocks
+// the handler's outbound request, so the handler can return and call end() before the goroutine is
+// scheduled to observe Done. When the context is already cancelled at completion time, that completion
+// IS the disconnect, and the pinned side effect must run here instead of depending on scheduling (this
+// is the flake measured in CI: "an in-flight caller disconnect did not produce POST .../interrupt").
+// A response that was actually sent cannot take this branch: net/http cancels the request context only
+// AFTER ServeHTTP returns, so at a normal end() the context is still live.
 func (watcher *pinnedSocketCloseWatcher) end() {
 	if watcher == nil || watcher.finished == nil {
 		return
 	}
-	watcher.ended.Store(true)
+	if !watcher.ended.CompareAndSwap(false, true) {
+		return
+	}
+	if watcher.ctx != nil && errors.Is(watcher.ctx.Err(), context.Canceled) {
+		watcher.fire()
+	}
 	watcher.once.Do(func() { close(watcher.finished) })
 }
 
