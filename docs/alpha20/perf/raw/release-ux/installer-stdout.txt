@@ -1,0 +1,18 @@
+GoTavern installer
+  release: v0.1.0-alpha.18
+  target:  windows/arm64
+  dir:     C:\Users\koishi\AppData\Local\Temp\a20\installer\v6-upgrade-rollback
+
+Downloading checksums...
+Downloading gotavern-windows-arm64.zip...
+Checksum verified.
+
+GoTavern v0.1.0-alpha.18 installed successfully.
+
+Install directory:
+  C:\Users\koishi\AppData\Local\Temp\a20\installer\v6-upgrade-rollback
+
+Start GoTavern with:
+  C:\Users\koishi\AppData\Local\Temp\a20\installer\v6-upgrade-rollback\Start.cmd
+
+Existing config.yaml preserved.

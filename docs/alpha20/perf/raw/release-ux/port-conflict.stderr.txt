@@ -1,0 +1,2 @@
+gotavern: Error: Startup aborted because IPv4 is the only enabled protocol and its listen port is already in use.: listen tcp4 127.0.0.1:18791: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+Hint: another process is listening on that port; stop it or choose a different port with --port <n>.
