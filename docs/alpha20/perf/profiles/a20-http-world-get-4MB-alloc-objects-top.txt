@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_objects
+Time: 2026-11-09 17:36:45 PST
+Showing nodes accounting for 35463, 99.48% of 35648 total
+Dropped 63 nodes (cum <= 178)
+Showing top 30 nodes out of 55
+      flat  flat%   sum%        cum   cum%
+      9362 26.26% 26.26%       9362 26.26%  os.newFileStatFromWin32FileAttributeData (inline)
+      8192 22.98% 49.24%       8192 22.98%  fmt.Sprintf
+      5461 15.32% 64.56%       5461 15.32%  runtime.mallocgc
+      4681 13.13% 77.69%       4681 13.13%  regexp/syntax.(*parser).newRegexp (inline)
+      4370 12.26% 89.95%      12562 35.24%  net/http.(*ServeMux).registerErr
+      2731  7.66% 97.61%       2731  7.66%  os.newFile
+       456  1.28% 98.89%        456  1.28%  runtime/pprof.StartCPUProfile
+       210  0.59% 99.48%        226  0.63%  io.ReadAll
+         0     0% 99.48%      24658 69.17%  github.com/cocokoishi/gotavern/internal/app.Start
+         0     0% 99.48%      12562 35.24%  github.com/cocokoishi/gotavern/internal/server.NewHTTPHandlerWithOptions
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/server.init
+         0     0% 99.48%      12562 35.24%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandler
+         0     0% 99.48%      12562 35.24%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains
+         0     0% 99.48%       2185  6.13%  github.com/cocokoishi/gotavern/internal/server.registerCharactersRoutes
+         0     0% 99.48%       2185  6.13%  github.com/cocokoishi/gotavern/internal/server.registerCharactersRoutes.func1 (inline)
+         0     0% 99.48%      10377 29.11%  github.com/cocokoishi/gotavern/internal/server.registerDomainRoutes (inline)
+         0     0% 99.48%       8192 22.98%  github.com/cocokoishi/gotavern/internal/server.registerNanoGPTRoutes
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.BackupSettings
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.EnsureDirectories
+         0     0% 99.48%      12093 33.92%  github.com/cocokoishi/gotavern/internal/startup.InitializeDataStartup
+         0     0% 99.48%      12093 33.92%  github.com/cocokoishi/gotavern/internal/startup.InitializeDataStartupFromCommandLine
+         0     0% 99.48%       2731  7.66%  github.com/cocokoishi/gotavern/internal/startup.VerifyCharacterDiskCache
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.backupUserSettings
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.backupUserSettingsLocked
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.ensureDirectoryIfMissing
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.ensureResolvedContained
+         0     0% 99.48%       4681 13.13%  github.com/cocokoishi/gotavern/internal/startup.resolveExistingPathPrefix
+         0     0% 99.48%        226  0.63%  main.(*session).do
+         0     0% 99.48%      25340 71.08%  main.main
+         0     0% 99.48%      12562 35.24%  net/http.(*ServeMux).HandleFunc

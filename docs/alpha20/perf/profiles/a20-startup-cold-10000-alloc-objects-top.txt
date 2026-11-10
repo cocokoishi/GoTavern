@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_objects
+Time: 2026-11-09 17:35:56 PST
+Showing nodes accounting for 152607, 100% of 152627 total
+Dropped 20 nodes (cum <= 763)
+Showing top 30 nodes out of 53
+      flat  flat%   sum%        cum   cum%
+     32768 21.47% 21.47%      32768 21.47%  reflect.unsafe_New
+     21846 14.31% 35.78%      59295 38.85%  github.com/cocokoishi/gotavern/internal/startup.marshalStatisticsString
+     19118 12.53% 48.31%      19118 12.53%  strings.(*Builder).WriteString (inline)
+     16444 10.77% 59.08%      60164 39.42%  github.com/cocokoishi/gotavern/internal/startup.VerifyCharacterDiskCache
+     16384 10.73% 69.82%      16384 10.73%  encoding/hex.EncodeToString (inline)
+     16384 10.73% 80.55%      16384 10.73%  net/http.(*routingIndex).addPattern (inline)
+      8193  5.37% 85.92%      24577 16.10%  github.com/cocokoishi/gotavern/internal/startup.storeFilename
+      6554  4.29% 90.21%       6554  4.29%  gopkg.in/yaml%2ev3.(*parser).node
+      5461  3.58% 93.79%       5461  3.58%  runtime.mallocgc
+      4681  3.07% 96.86%       4681  3.07%  encoding/json/v2.JoinOptions (inline)
+      4681  3.07% 99.93%       4681  3.07%  os.newFileStatFromFileIDBothDirInfo (inline)
+        40 0.026%   100%      59340 38.88%  github.com/cocokoishi/gotavern/internal/startup.marshalStatistics
+        32 0.021%   100%       4713  3.09%  os.(*File).readdir
+        21 0.014%   100%      64049 41.96%  github.com/cocokoishi/gotavern/internal/startup.(*statisticsTarget).recompute
+         0     0%   100%      32768 21.47%  encoding/json.(*Encoder).Encode
+         0     0%   100%       4681  3.07%  encoding/json.(*Encoder).SetEscapeHTML
+         0     0%   100%      32768 21.47%  encoding/json/v2.MarshalEncode
+         0     0%   100%      32768 21.47%  encoding/json/v2.marshalEncode
+         0     0%   100%     147151 96.41%  github.com/cocokoishi/gotavern/internal/app.Start
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/commandline.ResolveCommandLine
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/commandline.ResolvePaths
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/configinit.Initialize
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/configinit.parseMapping
+         0     0%   100%      19661 12.88%  github.com/cocokoishi/gotavern/internal/server.NewHTTPHandlerWithOptions
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/server.charactersLazyLoadEnabled
+         0     0%   100%      19661 12.88%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandler
+         0     0%   100%      19661 12.88%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/server.registerCharactersRoutes
+         0     0%   100%       3277  2.15%  github.com/cocokoishi/gotavern/internal/server.registerDomainRoutes (inline)
+         0     0%   100%     124213 81.38%  github.com/cocokoishi/gotavern/internal/startup.InitializeDataStartup

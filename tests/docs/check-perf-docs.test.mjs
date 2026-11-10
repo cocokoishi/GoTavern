@@ -57,8 +57,20 @@ test('README table cell that disagrees with the artifact names README-TABLE-PINN
 });
 
 test('a known-stale release token is refused by name', () => {
-    const readme = mutatedCopy('readme-stale.md', 'README.md', text => text.replaceAll('v0.1.0-alpha.18', 'v0.1.0-alpha.15'));
+    const readme = mutatedCopy('readme-stale.md', 'README.md', text => text.replaceAll('v0.1.0-alpha.19', 'v0.1.0-alpha.15'));
     expectNamedFailure(runChecker(['--readme', readme]), 'README-STALE-VERSION');
+});
+
+test('a first screen over the alpha.20 character budget is refused by name', () => {
+    // The alpha.19 first screen measured 11,170 characters; alpha.20's contract is a >=40% reduction. The
+    // mutation inserts filler ABOVE the "## Release status" boundary, so the whole-file budget still passes
+    // and only the first-screen assertion can catch it.
+    const readme = mutatedCopy('readme-first-screen-overbudget.md', 'README.md', text => {
+        const boundary = text.indexOf('\n## Release status');
+        assert.ok(boundary > 0, 'README.md has no "## Release status" boundary to mutate against');
+        return `${text.slice(0, boundary)}\n${'first screen filler '.repeat(400)}${text.slice(boundary)}`;
+    });
+    expectNamedFailure(runChecker(['--readme', readme]), 'README-FIRST-SCREEN-BUDGET');
 });
 
 test('an over-budget README fails the length budget', () => {

@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_objects
+Time: 2026-11-09 17:36:41 PST
+Showing nodes accounting for 5627380, 96.85% of 5810414 total
+Dropped 94 nodes (cum <= 29052)
+Showing top 30 nodes out of 83
+      flat  flat%   sum%        cum   cum%
+   1179664 20.30% 20.30%    2302058 39.62%  encoding/json.(*Decoder).Token
+   1156448 19.90% 40.21%    3458506 59.52%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+    717326 12.35% 52.55%     717326 12.35%  encoding/json/jsontext.Token.String (inline)
+    436911  7.52% 60.07%     671830 11.56%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+    192074  3.31% 63.38%     224842  3.87%  encoding/json/jsontext.(*decoderState).fetch
+    153614  2.64% 66.02%     153614  2.64%  strings.(*Builder).WriteByte (inline)
+    143560  2.47% 68.49%     143560  2.47%  syscall.UTF16ToString
+    142000  2.44% 70.93%     357341  6.15%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSON
+    131073  2.26% 73.19%     131073  2.26%  github.com/cocokoishi/gotavern/internal/server.nodeString (inline)
+    113012  1.94% 75.14%     113012  1.94%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+    107053  1.84% 76.98%     107053  1.84%  strings.(*Builder).WriteString (inline)
+     98305  1.69% 78.67%      98305  1.69%  encoding/json/jsontext.(*stateMachine).pushObject (inline)
+     98305  1.69% 80.36%      98305  1.69%  internal/bytealg.MakeNoZero
+     98305  1.69% 82.05%      98305  1.69%  reflect.unsafe_New
+     93931  1.62% 83.67%      93931  1.62%  io.ReadAll
+     86978  1.50% 85.17%     197001  3.39%  syscall.FullPath
+     79586  1.37% 86.54%      79586  1.37%  encoding/json/v2.JoinOptions (inline)
+     65539  1.13% 87.66%      65543  1.13%  bytes.(*Buffer).grow
+     65537  1.13% 88.79%      65537  1.13%  encoding/json/jsontext.(*objectNameStack).push (inline)
+     58526  1.01% 89.80%      58526  1.01%  syscall.UTF16FromString
+     54819  0.94% 90.74%      54819  0.94%  github.com/cocokoishi/gotavern/internal/server.extractPngChunks
+     54615  0.94% 91.68%      54615  0.94%  bytes.NewReader (inline)
+     43691  0.75% 92.44%      87382  1.50%  github.com/cocokoishi/gotavern/internal/server.marshalECMAScriptNumber
+     43691  0.75% 93.19%      43691  0.75%  internal/strconv.FormatFloat
+     39333  0.68% 93.86%      39333  0.68%  encoding/json/jsontext.NewDecoder (inline)
+     37705  0.65% 94.51%    5195531 89.42%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+     37453  0.64% 95.16%      37453  0.64%  os.newFileStatFromFileIDBothDirInfo
+     32789  0.56% 95.72%      63761  1.10%  github.com/cocokoishi/gotavern/internal/server.storeCharacterCardTextCache
+     32769  0.56% 96.29%      65537  1.13%  github.com/cocokoishi/gotavern/internal/server.humanizedDateTime
+     32768  0.56% 96.85%      32768  0.56%  encoding/json/jsontext.(*objectNameStack).copyQuotedBuffer

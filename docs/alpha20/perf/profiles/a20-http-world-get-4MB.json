@@ -1,0 +1,71 @@
+{
+  "label": "a20-http-world-get-4MB",
+  "mode": "http",
+  "goVersion": "go1.27.3",
+  "goos": "windows",
+  "goarch": "arm64",
+  "gomaxprocs": 2,
+  "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\trees\\world-4mb\\data",
+  "configPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\trees\\world-4mb\\config.yaml",
+  "route": "world-get",
+  "requests": 3,
+  "warmup": 1,
+  "startupMs": 519.813,
+  "readyMs": 2.021,
+  "startupStageLines": [
+    "gotavern: startup.command-line took 28ms (total 28ms)",
+    "gotavern: startup.data-startup took 210ms (total 237ms)",
+    "gotavern: startup.listeners took 265ms (total 503ms)",
+    "gotavern: startup.routes took 17ms (total 520ms)",
+    "gotavern: startup.ready took 0s (total 520ms)"
+  ],
+  "requestRows": [
+    {
+      "index": 0,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 393.324,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": false
+    },
+    {
+      "index": 0,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 432.55,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 1,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 980.651,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 2,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 740.697,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    }
+  ],
+  "cpuProfile": "a20-http-world-get-4MB-cpu.pb.gz",
+  "heapProfile": "a20-http-world-get-4MB-heap.pb.gz",
+  "cpuProfileRateHz": 100,
+  "notes": [
+    "CPU profile rate is Go's default 100 Hz; short windows carry few samples and are reported with their sample counts.",
+    "Heap profile carries alloc_space/alloc_objects (cumulative) and inuse_space/inuse_objects (after a forced GC at capture); the two are never mixed.",
+    "All OCUMULATIVE allocation totals include the startup path and the warmup requests; a warm-window claim is about the SHAPE of the profile, and the per-request allocation numbers come from internal/server/bench_test.go.",
+    "This helper calls internal/app.Start in-process; it is not the packaged binary and does not measure process exec/init cost (tools/perf/a19-boot.mjs does that)."
+  ],
+  "startedAt": "2026-11-10T01:36:42Z",
+  "finishedAt": "2026-11-10T01:36:45Z"
+}

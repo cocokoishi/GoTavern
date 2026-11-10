@@ -1,0 +1,39 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: cpu
+Time: 2026-11-09 17:36:25 PST
+Duration: 15.74s, Total samples = 15.44s (98.09%)
+Showing nodes accounting for 11.44s, 74.09% of 15.44s total
+Dropped 192 nodes (cum <= 0.08s)
+Showing top 30 nodes out of 196
+      flat  flat%   sum%        cum   cum%
+     2.64s 17.10% 17.10%      2.64s 17.10%  runtime.asyncPreempt
+     1.50s  9.72% 26.81%      2.20s 14.25%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+     1.16s  7.51% 34.33%      2.80s 18.13%  compress/flate.(*fastEncL6).encode
+     0.71s  4.60% 38.92%      0.71s  4.60%  crypto/sha1.sha1block
+     0.55s  3.56% 42.49%      0.85s  5.51%  encoding/json/internal/jsonwire.ConsumeSimpleString (inline)
+     0.48s  3.11% 45.60%      0.68s  4.40%  runtime.tryDeferToSpanScan
+     0.46s  2.98% 48.58%      0.46s  2.98%  runtime.memmove
+     0.31s  2.01% 50.58%      0.31s  2.01%  runtime.preemptM
+     0.27s  1.75% 52.33%      0.28s  1.81%  runtime.cgocall
+     0.27s  1.75% 54.08%      0.27s  1.75%  runtime.memclrNoHeapPointers
+     0.26s  1.68% 55.76%      0.35s  2.27%  compress/flate.loadLE64[go.shape.int32] (inline)
+     0.24s  1.55% 57.32%      0.46s  2.98%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.19s  1.23% 58.55%      0.22s  1.42%  compress/flate.hashLen (inline)
+     0.19s  1.23% 59.78%      0.28s  1.81%  compress/flate.loadLE64[go.shape.int] (inline)
+     0.19s  1.23% 61.01%      3.46s 22.41%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     0.19s  1.23% 62.24%      0.19s  1.23%  runtime.osyield.func1
+     0.18s  1.17% 63.41%      1.59s 10.30%  runtime.mallocgc
+     0.15s  0.97% 64.38%      0.54s  3.50%  compress/flate.matchLen
+     0.15s  0.97% 65.35%      0.20s  1.30%  internal/filepathlite.(*lazybuf).append (inline)
+     0.14s  0.91% 66.26%      0.53s  3.43%  runtime.scanObject
+     0.14s  0.91% 67.16%      0.14s  0.91%  runtime.spanClass.sizeclass (inline)
+     0.14s  0.91% 68.07%      0.16s  1.04%  unicode/utf8.DecodeRuneInString (inline)
+     0.13s  0.84% 68.91%      0.40s  2.59%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.13s  0.84% 69.75%      0.22s  1.42%  encoding/json/internal/jsonwire.ConsumeStringResumable.func1 (inline)
+     0.12s  0.78% 70.53%      0.38s  2.46%  github.com/cocokoishi/gotavern/internal/server.javaScriptStringLength
+     0.11s  0.71% 71.24%      0.42s  2.72%  internal/filepathlite.Clean
+     0.11s  0.71% 71.96%      0.11s  0.71%  runtime.(*mspan).nextFreeIndex
+     0.11s  0.71% 72.67%      0.12s  0.78%  runtime.findObject
+     0.11s  0.71% 73.38%      0.17s  1.10%  runtime.mapaccess2_faststr
+     0.11s  0.71% 74.09%      0.11s  0.71%  runtime.markBits.setMarked (inline)

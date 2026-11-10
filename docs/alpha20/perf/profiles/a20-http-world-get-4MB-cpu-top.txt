@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: cpu
+Time: 2026-11-09 17:36:43 PST
+Duration: 2.16s, Total samples = 1.39s (64.42%)
+Showing nodes accounting for 1.34s, 96.40% of 1.39s total
+Showing top 30 nodes out of 158
+      flat  flat%   sum%        cum   cum%
+     0.31s 22.30% 22.30%      0.31s 22.30%  runtime.osyield.func1
+     0.29s 20.86% 43.17%      0.29s 20.86%  runtime.asyncPreempt
+     0.12s  8.63% 51.80%      0.12s  8.63%  runtime.preemptM
+     0.07s  5.04% 56.83%      0.09s  6.47%  runtime.lock2
+     0.05s  3.60% 60.43%      0.08s  5.76%  compress/flate.loadLE64[go.shape.int32] (inline)
+     0.05s  3.60% 64.03%      0.09s  6.47%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.05s  3.60% 67.63%      0.15s 10.79%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+     0.03s  2.16% 69.78%      0.23s 16.55%  compress/flate.(*fastEncL6).encode
+     0.03s  2.16% 71.94%      0.03s  2.16%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+     0.03s  2.16% 74.10%      0.03s  2.16%  runtime.(*mLockProfile).store (inline)
+     0.03s  2.16% 76.26%      0.03s  2.16%  runtime.memclrNoHeapPointers
+     0.03s  2.16% 78.42%      0.06s  4.32%  runtime.unlock2
+     0.02s  1.44% 79.86%      0.04s  2.88%  compress/flate.loadLE64[go.shape.int] (inline)
+     0.02s  1.44% 81.29%      0.02s  1.44%  crypto/sha1.sha1block
+     0.02s  1.44% 82.73%      0.02s  1.44%  internal/runtime/atomic.(*Bool).Load (inline)
+     0.02s  1.44% 84.17%      0.02s  1.44%  runtime.findfunc
+     0.02s  1.44% 85.61%      0.28s 20.14%  runtime.markroot
+     0.02s  1.44% 87.05%      0.02s  1.44%  runtime.step
+     0.02s  1.44% 88.49%      0.23s 16.55%  runtime.suspendG
+     0.01s  0.72% 89.21%      0.01s  0.72%  internal/runtime/atomic.(*Int32).Load (inline)
+     0.01s  0.72% 89.93%      0.01s  0.72%  internal/runtime/atomic.(*Uint32).Load (inline)
+     0.01s  0.72% 90.65%      0.01s  0.72%  runtime.(*activeSweep).isDone (inline)
+     0.01s  0.72% 91.37%      0.01s  0.72%  runtime.(*m).snapshotAllp
+     0.01s  0.72% 92.09%      0.03s  2.16%  runtime.(*unwinder).resolveInternal
+     0.01s  0.72% 92.81%      0.10s  7.19%  runtime.bgsweep
+     0.01s  0.72% 93.53%      0.01s  0.72%  runtime.cgocall
+     0.01s  0.72% 94.24%      0.01s  0.72%  runtime.memmove
+     0.01s  0.72% 94.96%      0.06s  4.32%  runtime.preemptall
+     0.01s  0.72% 95.68%      0.01s  0.72%  runtime.scanObjectsSmall
+     0.01s  0.72% 96.40%      0.25s 17.99%  runtime.schedule
