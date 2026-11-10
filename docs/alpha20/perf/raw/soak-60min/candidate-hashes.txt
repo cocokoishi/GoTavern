@@ -1,0 +1,5 @@
+soakSubjectSha=260b7900d4bd2385a321ef859c7f998b8e28e02c
+soakSubjectBinarySha256=6A297E48C238389DA02E113EA7BFD82021C4A18ACCE35E13CBFA8E8F6CECA1EB
+soakSubjectBinarySize=60915200
+buildFlags=go build -buildvcs=false -trimpath -ldflags="-s -w"
+supersededRun=7a8f9776455dca7ef9eb42f6337e4e2846ddf828 (see soak-60min-superseded-7a8f977.md)

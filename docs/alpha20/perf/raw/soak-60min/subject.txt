@@ -1,0 +1,5 @@
+sha=260b7900d4bd2385a321ef859c7f998b8e28e02c
+source=C:\Users\koishi\AppData\Local\Temp\a20\soak-wt-260b790
+binary=C:\Users\koishi\AppData\Local\Temp\a20\soak-260b790\gotavern.exe
+sha256=6A297E48C238389DA02E113EA7BFD82021C4A18ACCE35E13CBFA8E8F6CECA1EB
+size=60915200
