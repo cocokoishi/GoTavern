@@ -1,0 +1,37 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_space
+Time: 2026-11-09 17:36:41 PST
+Showing nodes accounting for 71.91MB, 100% of 71.91MB total
+Showing top 30 nodes out of 117
+      flat  flat%   sum%        cum   cum%
+   16.21MB 22.55% 22.55%    16.21MB 22.55%  bytes.growSlice
+      10MB 13.91% 36.46%       10MB 13.91%  io.ReadAll
+    6.23MB  8.67% 45.13%     6.73MB  9.36%  encoding/json/jsontext.(*decoderState).fetch
+    6.09MB  8.46% 53.59%    25.90MB 36.02%  github.com/cocokoishi/gotavern/internal/server.pinnedChatData
+       4MB  5.56% 59.15%    20.21MB 28.11%  bytes.(*Buffer).grow
+    3.93MB  5.47% 64.62%     3.93MB  5.47%  os.readFileContents
+    3.13MB  4.35% 68.97%     3.13MB  4.35%  encoding/json/jsontext.Token.String (inline)
+       3MB  4.17% 73.14%    14.86MB 20.67%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+    2.86MB  3.98% 77.13%     2.86MB  3.98%  compress/flate.newFastEnc (inline)
+       2MB  2.78% 79.91%        2MB  2.78%  encoding/json/v2.JoinOptions (inline)
+    1.92MB  2.67% 82.58%     5.28MB  7.35%  compress/flate.NewWriter
+    1.50MB  2.09% 84.66%     1.50MB  2.09%  encoding/json/jsontext.NewDecoder (inline)
+    1.50MB  2.09% 86.75%     1.50MB  2.09%  github.com/cocokoishi/gotavern/internal/startup.calculateChatMessageStatistics
+    1.50MB  2.09% 88.84%    11.86MB 16.50%  encoding/json.(*Decoder).Token
+    1.34MB  1.87% 90.71%     1.34MB  1.87%  compress/flate.(*fastGen).addBlock
+    1.16MB  1.61% 92.31%     1.16MB  1.61%  runtime/pprof.StartCPUProfile
+    0.98MB  1.37% 93.68%     3.47MB  4.82%  github.com/cocokoishi/gotavern/internal/startup.calculateCharacterStatisticsFromListing
+    0.54MB  0.75% 94.43%     0.54MB  0.75%  gopkg.in/yaml%2ev3.yaml_emitter_emit
+    0.50MB   0.7% 95.13%     0.50MB   0.7%  strings.(*Replacer).build
+    0.50MB   0.7% 95.83%     0.50MB   0.7%  gopkg.in/yaml%2ev3.yaml_parser_initialize
+    0.50MB   0.7% 96.52%     0.50MB   0.7%  compress/flate.newHuffmanEncoder (inline)
+    0.50MB   0.7% 97.22%     0.50MB   0.7%  gopkg.in/yaml%2ev3.(*parser).node
+    0.50MB   0.7% 97.91%     0.50MB   0.7%  regexp/syntax.(*parser).newRegexp
+    0.50MB   0.7% 98.61%     0.50MB   0.7%  runtime.mallocgc
+    0.50MB   0.7% 99.30%     0.50MB   0.7%  encoding/json/jsontext.(*objectNameStack).copyQuotedBuffer
+    0.50MB   0.7%   100%     0.50MB   0.7%  encoding/json/jsontext.(*objectNameStack).push (inline)
+         0     0%   100%     5.64MB  7.84%  bytes.(*Buffer).Grow
+         0     0%   100%    14.57MB 20.27%  bytes.(*Buffer).Write
+         0     0%   100%     1.34MB  1.87%  compress/flate.(*Writer).Write
+         0     0%   100%     1.34MB  1.87%  compress/flate.(*compressor).deflateFast

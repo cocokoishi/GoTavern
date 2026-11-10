@@ -1,0 +1,37 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_space
+Time: 2026-11-09 17:36:53 PST
+Showing nodes accounting for 48.83MB, 94.21% of 51.83MB total
+Showing top 30 nodes out of 159
+      flat  flat%   sum%        cum   cum%
+   13.41MB 25.88% 25.88%    13.91MB 26.84%  github.com/cocokoishi/gotavern/internal/server.forwardPinnedChatCompletionStream
+   10.53MB 20.31% 46.19%    10.53MB 20.31%  bytes.growSlice
+    3.01MB  5.80% 51.99%     3.01MB  5.80%  io.ReadAll
+    2.51MB  4.84% 56.84%     2.51MB  4.84%  bufio.NewWriterSize (inline)
+    2.01MB  3.87% 60.71%     2.01MB  3.87%  bufio.NewReaderSize (inline)
+       2MB  3.86% 64.57%     2.50MB  4.83%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+    1.50MB  2.89% 67.46%     1.50MB  2.89%  strings.(*Builder).WriteString (inline)
+    1.16MB  2.23% 69.70%     1.16MB  2.23%  runtime/pprof.StartCPUProfile
+       1MB  1.93% 71.63%        1MB  1.93%  net/textproto.readMIMEHeader
+       1MB  1.93% 73.56%        1MB  1.93%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember
+       1MB  1.93% 75.49%        1MB  1.93%  net/http.Header.Clone (inline)
+    0.64MB  1.23% 76.72%     0.64MB  1.23%  compress/flate.NewWriter (inline)
+    0.54MB  1.04% 77.77%     0.54MB  1.04%  gopkg.in/yaml%2ev3.yaml_emitter_emit
+    0.51MB  0.98% 78.75%     3.71MB  7.15%  main.main
+    0.50MB  0.97% 79.72%     1.14MB  2.21%  runtime/pprof.(*profileBuilder).emitLocation
+    0.50MB  0.97% 80.69%     0.50MB  0.97%  strings.(*Replacer).build
+    0.50MB  0.97% 81.66%        2MB  3.86%  github.com/cocokoishi/gotavern/internal/startup.DirectoriesForUser
+    0.50MB  0.97% 82.63%     0.50MB  0.97%  golang.org/x/text/collate.init.0
+    0.50MB  0.97% 83.60%     0.50MB  0.97%  encoding/json/jsontext.(*decoderState).fetch
+    0.50MB  0.97% 84.56%     0.50MB  0.97%  github.com/cocokoishi/gotavern/internal/server.newAccountRuntime
+    0.50MB  0.97% 85.53%     0.50MB  0.97%  net/textproto.MIMEHeader.Set
+    0.50MB  0.97% 86.49%     0.50MB  0.97%  reflect.mapassign_faststr0
+    0.50MB  0.97% 87.46%     0.50MB  0.97%  github.com/cocokoishi/gotavern/internal/server.pinnedChatCompletionRequestFraming
+    0.50MB  0.96% 88.42%     0.50MB  0.96%  net/http.readCookies
+    0.50MB  0.96% 89.39%     0.50MB  0.96%  net/http.(*Transport).getConn
+    0.50MB  0.96% 90.35%     0.50MB  0.96%  net/http/cookiejar.(*Jar).cookies
+    0.50MB  0.96% 91.32%        1MB  1.93%  regexp.compile
+    0.50MB  0.96% 92.28%     0.50MB  0.96%  net/url.parse
+    0.50MB  0.96% 93.25%     5.52MB 10.65%  net/http.(*Transport).dialConn
+    0.50MB  0.96% 94.21%     0.50MB  0.96%  regexp/syntax.simplify1 (inline)
