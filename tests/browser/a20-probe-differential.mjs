@@ -80,6 +80,65 @@ async function stopAndReboot(subject, dataRoot, binary) {
     return { kind: subject.kind, server, client, exit };
 }
 
+/**
+ * Wait until the throttled backup directory is STABLE: no size/mtime change to any backup file for
+ * `stableForMs`, up to `timeoutMs`. The pinned backup scheduler is a wall-clock throttle (default 10 s,
+ * trailing invocation), so a snapshot taken at an arbitrary moment can legitimately see or miss a pending
+ * trailing backup. A differential that compares such a snapshot across two independent processes would
+ * report a timing difference as a product difference; this helper removes that nondeterminism by waiting
+ * for the timer to drain, and the row records the wait it actually needed.
+ */
+async function settleBackups(dir, { stableForMs = 3000, timeoutMs = 25000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    let lastChange = Date.now();
+    while (Date.now() - started < timeoutMs) {
+        const census = stableStringify(await census(dir).catch(() => []));
+        if (last === null) { last = census; lastChange = Date.now(); }
+        else if (census !== last) { last = census; lastChange = Date.now(); }
+        else if (Date.now() - lastChange >= stableForMs) {
+            return { stable: true, waitedMs: Date.now() - started };
+        }
+        await delay(250);
+    }
+    return { stable: false, waitedMs: Date.now() - started };
+}
+
+/**
+ * Deterministic backup-scheduler probe shared by both legs and both matrices:
+ *   1. settle (close any open throttle window), snapshot;
+ *   2. one forced save, snapshot immediately -> exactly ONE leading backup, whose bytes are the payload;
+ *   3. settle again -> exactly ONE trailing backup, whose bytes are the SAME (last) payload;
+ *   4. normalised names are compared across subjects.
+ * This replaces the per-save snapshot comparison, which raced the trailing timer.
+ */
+async function observeBackupScheduler({ save, backupsDir, label }) {
+    const settleBefore = await settleBackups(backupsDir);
+    const before = await backupsState(backupsDir);
+    const payloadBody = chatArray({ messages: [`scheduler ${label} payload`] });
+    const response = await save({ chat: payloadBody, force: true });
+    await delay(500);
+    const immediate = await backupsState(backupsDir);
+    const payloadSha = sha256(Buffer.from(payloadBody.map(item => JSON.stringify(item)).join('\n'), 'utf8'));
+    const immediateAdded = immediate.filter(entry => !before.some(previous => previous.name === entry.name));
+    const settleAfter = await settleBackups(backupsDir);
+    const settled = await backupsState(backupsDir);
+    const trailingAdded = settled.filter(entry => !immediate.some(previous => previous.name === entry.name));
+    const namesNormalized = settled.map(entry => entry.name);
+    return {
+        status: response.status,
+        bodyText: response.bodyText,
+        settleBefore,
+        settleAfter,
+        immediateAddedCount: immediateAdded.length,
+        immediateAddedShaMatchesPayload: immediateAdded.length === 1 && immediateAdded[0].sha256 === payloadSha,
+        trailingAddedCount: trailingAdded.length,
+        trailingAddedShaMatchesPayload: trailingAdded.length === 1 && trailingAdded[0].sha256 === payloadSha,
+        totalAddedAcrossWindow: settled.length - before.length,
+        namesNormalized,
+    };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // CHAT MATRIX (the scenario order and payloads are those of a20-probe-chat-integrity.mjs)
 // ---------------------------------------------------------------------------------------------------
@@ -99,7 +158,11 @@ async function runChatLeg(kind, binary) {
     };
     const row = async (id, fields) => {
         const state = await fileState(chatFile);
-        rows.push({ id, ...fields, chatFile: { exists: state.exists, bytes: state.bytes ?? 0, sha256: state.sha256 ?? null }, backups: await backupsState(backupsDir) });
+        // Per-save backup snapshots are intentionally NOT compared here: the throttled trailing backup is
+        // wall-clock scheduled, so a snapshot can legitimately catch or miss it. The dedicated deterministic
+        // scheduler row below (settle -> leading -> settle -> trailing) is what compares the backup
+        // behaviour across subjects.
+        rows.push({ id, ...fields, chatFile: { exists: state.exists, bytes: state.bytes ?? 0, sha256: state.sha256 ?? null }, backups: null });
     };
 
     const a1 = await save({ chat: chatArray() });
@@ -110,8 +173,6 @@ async function runChatLeg(kind, binary) {
     await row('A3-mismatch-no-force', { status: a3.status, bodyText: a3.bodyText });
     const a4 = await save({ chat: chatArray({ integrity: 'diff-slug-beta' }), force: false });
     await row('A4-force-false', { status: a4.status, bodyText: a4.bodyText });
-    await delay(11000); // let the trailing throttle backup fire so the next row's census is stable
-    await row('A5-throttle-settled', { status: null, bodyText: null });
     const a6 = await save({ chat: chatArray({ integrity: 'diff-slug-beta', messages: ['forced'] }), force: true });
     await row('A6-force-true', { status: a6.status, bodyText: a6.bodyText });
     const a7 = await save({ chat: chatArray({ integrity: null, messages: ['legacy'] }) });
@@ -128,6 +189,12 @@ async function runChatLeg(kind, binary) {
     await fsp.writeFile(chatFile, '', 'utf8');
     const a11 = await save({ chat: chatArray({ integrity: 'diff-empty', messages: ['over empty'] }) });
     await row('A11-empty-file', { status: a11.status, bodyText: a11.bodyText });
+
+    // DETERMINISTIC BACKUP SCHEDULER ROW: settle the throttle window, then one forced save must produce
+    // exactly one leading backup immediately and exactly one trailing backup after the interval, both with
+    // the payload bytes. This is the comparison that does not race the wall-clock timer.
+    const chatScheduler = await observeBackupScheduler({ save, backupsDir, label: 'chat' });
+    rows.push({ id: 'B0-backup-scheduler', status: chatScheduler.status, bodyText: chatScheduler.bodyText, chatFile: null, backups: null, scheduler: chatScheduler });
 
     // restart: backups.chat.checkIntegrity=false -> the mismatch is accepted by BOTH subjects
     const checkEdit = await patchConfigLine(dataRoot, 'checkIntegrity: true', 'checkIntegrity: false');
@@ -172,7 +239,7 @@ async function runGroupLeg(kind, binary) {
     };
     const row = async (id, fields) => {
         const state = await fileState(groupFile);
-        rows.push({ id, ...fields, chatFile: { exists: state.exists, bytes: state.bytes ?? 0, sha256: state.sha256 ?? null }, backups: await backupsState(backupsDir) });
+        rows.push({ id, ...fields, chatFile: { exists: state.exists, bytes: state.bytes ?? 0, sha256: state.sha256 ?? null }, backups: null });
     };
 
     const g1 = await save({ chat: groupArray() });
@@ -190,9 +257,17 @@ async function runGroupLeg(kind, binary) {
     const g7 = await save({ id: GROUP_ID, chat: groupArray({ integrity: 'diff-group-beta', messages: ['forced'] }), force: true });
     await row('G7-force', { status: g7.status, bodyText: g7.bodyText });
 
-    // flush-on-close: two forced saves then a graceful stop; the pending trailing backup must appear ACROSS
-    // the stop boundary with the last payload's bytes.
-    await delay(11000);
+    // DETERMINISTIC BACKUP SCHEDULER ROW (group save path).
+    const groupScheduler = await observeBackupScheduler({
+        backupsDir,
+        label: 'group',
+        save: async ({ chat }) => save({ id: GROUP_ID, chat, force: true }),
+    });
+    rows.push({ id: 'G7b-backup-scheduler', status: groupScheduler.status, bodyText: groupScheduler.bodyText, chatFile: null, backups: null, scheduler: groupScheduler });
+
+    // flush-on-close: after the scheduler row the window is CLOSED, so the first save below is
+    // deterministically a leading invocation (one backup before the stop) and the second one is the
+    // pending trailing invocation that only the exit flush can materialise.
     const beforeFlush = await backupsState(backupsDir);
     const f1 = await save({ id: GROUP_ID, chat: groupArray({ integrity: 'diff-group-beta', messages: ['flush one'] }), force: true });
     const f2 = await save({ id: GROUP_ID, chat: groupArray({ integrity: 'diff-group-beta', messages: ['flush two'] }), force: true });
