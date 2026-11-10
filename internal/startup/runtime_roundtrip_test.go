@@ -373,6 +373,14 @@ func TestGotavernStartupLeavesExistingUserDataAlone(t *testing.T) {
 			}
 			body = decoded
 		}
+		if strings.Contains(entry.Path, "<timestamp>") {
+			// A normalized backup filename is a PATTERN recorded by the fixture's census, not a file
+			// the probe can materialize: the literal "<timestamp>" is not a legal Windows filename
+			// (it fails with "The filename, directory name, or volume label syntax is incorrect"),
+			// and startup cannot rewrite a file the probe never created. Skipping the seed leaves the
+			// preserved-bytes assertion intact because it compares the files that actually exist.
+			continue
+		}
 		target := filepath.Join(dataRoot, filepath.FromSlash(entry.Path))
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			t.Fatal(err)
