@@ -1,8 +1,8 @@
-# A20-D — the card base64 decoder rejected payloads pinned reads
+# A20-F — the card base64 decoder rejected payloads pinned reads
 
 | Field | Value |
 |---|---|
-| **ID** | A20-D |
+| **ID** | A20-F (renumbered from my earlier A20-D label; the Lead lane owns A20-D/A20-E) |
 | **Severity** | Medium |
 | **Status** | FIXED on `a20/audit` (commit with this file) |
 | **Source** | `internal/server/characters_card.go:193-202` (`decodeBase64UTF8`), called by `readPngCardText` for every `chara`/`ccv3` chunk |

@@ -14,7 +14,7 @@ package server
 //
 // ORACLE: measured with the pinned Node 24.19.0 runtime (Buffer.from(v,'base64').toString('utf8')) for the
 // unit rows, and by running the pinned src/character-card-parser.js read() against the same PNG shape for
-// the end-to-end row (probe output quoted in docs/alpha20/audit/A20-D.md).
+// the end-to-end row (probe output quoted in docs/alpha20/audit/A20-F-card-base64.md).
 
 import (
 	"encoding/base64"
