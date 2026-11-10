@@ -18,9 +18,14 @@ pushes to `ghcr.io/cocokoishi/gotavern` on a `v*` tag push and on a
 gate is proved to fail when verification cannot follow a push: mutation runs 39908260013 and 39908470507 (tag
 `dispatch-mutation-verify`) fail the pull-back step with `manifest unknown`, and after the report step was tightened
 the second of them also refuses to report the tag as published. MEASURED: the publish path and its gate, on
-linux/amd64. NOT COVERED: no `v*` tag exists (`git tag -l 'v*'` is empty as of 2026-10-23), so `:latest` has never
-been published and no user can pull a release image; a multi-architecture index is unexecuted; and the Windows
-installer behaviours are covered only by `release-qualification.yml` (see HANDOFF section 3).
+linux/amd64. **UPDATE 2026-11-09 (alpha.20):** the dated claims above that `v*` tags do not exist are superseded —
+tags through `v0.1.0-alpha.19` are published, each publishes its own `:v<tag>` image, and the published
+windows/arm64 archive was installed (pinned and unpinned), re-installed over user state, upgraded, rolled back and
+booted on the development host this round, with the tampered-archive refusal exercised too
+([`docs/alpha20/perf/installer-and-cli-verification.md`](alpha20/perf/installer-and-cli-verification.md)). Still not
+covered: a multi-architecture image index; `:latest` pointing at a STABLE tag (no stable tag exists yet, so the
+classifier's stable-only rule has never moved it); and Docker execution on this host (no daemon) — those remain
+CI-only rows.
 
    **`:latest` moves only on a STABLE tag, and a prerelease is marked as one on GitHub.** Both decisions come from
    `scripts/classify-version-tag.sh`, which `docker.yml` and `release.yml` both call: a tag that is exactly
@@ -36,7 +41,7 @@ installer behaviours are covered only by `release-qualification.yml` (see HANDOF
 
 Building from source is a developer workflow and must never be required as an implicit fallback when a release asset is missing.
 
-Until the first GitHub Release exists, installer scripts should fail clearly instead of compiling source.
+Installer scripts never fall back to cloning or compiling source: a missing asset is a named error, not an implicit build.
 
 ---
 
