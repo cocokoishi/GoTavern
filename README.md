@@ -118,10 +118,12 @@ sha256sum -c checksums.txt --ignore-missing   # macOS: shasum -a 256 -c checksum
 | Jimp byte-equal image re-encoding | `/thumbnail` serves real images at pinned dimensions; byte equality is not claimed |
 | Wire formats owned by third-party npm packages (Google voice `batchexecute`, `/api/translate/{google,bing}`) | owning an undocumented protocol is a product decision, not an accident |
 | `git.backend: builtin` | the system-git path is used, with a clear error if git is absent |
-| Per-chat backups (`backups.chat.*`) | no per-chat restore safety net; chat writes stay atomic and whole-file |
+| Per-chat backups (`backups.chat.*`) | implemented (alpha.18 scheduling/retention; alpha.20 `chat_metadata.integrity` guard and group-save schedule); see the disclosed differences below |
 | VERTEXAI service-account ("full") mode | answers the pinned error shape instead of fabricating a credential |
 
 Inherited upstream weaknesses are reproduced and recorded, not silently fixed: content-import host matching keeps upstream's substring test (`chub.ai.attacker.example` is treated as chub). Per-route ledgers live in [docs/compat-matrix.md](docs/compat-matrix.md) and [docs/surface-coverage.md](docs/surface-coverage.md).
+
+**Disclosed differences, kept rather than hidden:** no Brotli decoder (single-binary design), so `/proxy` retries a safe request once without `br` and refuses a mutating one; pinned's derived `_cache/characters` disk cache is not implemented (rebuildable from the cards, so a performance/parity gap rather than data loss); thumbnail `dominantColor` can differ by ±1 in 7 of 24 recorded cases; pinned's `console.error` line for a failed backup is not reproduced. Reasons: [docs/SEMANTIC-COMPATIBILITY.md](docs/SEMANTIC-COMPATIBILITY.md) and the [alpha.20 charter](docs/alpha20/CHARTER.md).
 
 ## Development
 
@@ -132,7 +134,7 @@ node scripts/dev-verify.mjs          # ~7 s: gofmt + build + the tests your chan
 node scripts/dev-verify.mjs --full   # ~2 min: the whole Go suite, including every fixture replay
 ```
 
-CI keeps the expensive gates: the full Go suite, `go vet`, `go test -race` over the packages that own shared mutable state, cross-compiles, the browser comparison, the packaged-artifact drop-in qualification, and the Linux oracle that re-records every fixture and requires a zero diff. A local green is not the CI gate; the two measured Windows host artefacts to exclude first are in [docs/development-loop.md](docs/development-loop.md) and `AGENTS.md` ("Working mode").
+CI keeps the expensive gates: the full Go suite, `go vet`, `-race`, cross-compiles, the browser comparison, the packaged drop-in qualification and the Linux oracle re-record. A local green is not the CI gate; the Windows host artefacts to exclude first are in [docs/development-loop.md](docs/development-loop.md) and `AGENTS.md`.
 
 ## Documentation
 
@@ -142,7 +144,6 @@ CI keeps the expensive gates: the full Go suite, `go vet`, `go test -race` over 
 - [docs/compatibility-matrix.md](docs/compatibility-matrix.md): the generated capability matrix.
 - [docs/INSTALLATION.md](docs/INSTALLATION.md): install, update, rollback, migration and the platform matrix.
 - [docs/development-loop.md](docs/development-loop.md): the test tiers, and what only the oracle can decide.
-- [docs/](docs/): the full documentation index.
 
 ## License
 
