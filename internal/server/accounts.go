@@ -100,6 +100,10 @@ type accountRuntime struct {
 	// instance per handler, shared by the index-page middleware and the three image-replacement routes
 	// that call `bust` directly, because pinned has exactly one module-level instance.
 	cacheBuster *cacheBuster
+	// backupManager is the pinned chat auto-backup scheduler (backups.chat.*). It is
+	// one per handler because pinned reads that config at module load, and both the
+	// 1:1 chat save and the group save schedule through it.
+	backupManager *chatBackupManager
 }
 
 type recoveryCodeEntry struct {
@@ -196,6 +200,7 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 		resetLimiter:     &memoryLoginLimiter{points: resetPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
 		defaultUser:      defaultUser,
 		cacheBuster:      newCacheBuster(options.CacheBuster),
+		backupManager:    newChatBackupManager(chatBackupSettingsForOptions(options)),
 		recoveryCodes:    make(map[string]recoveryCodeEntry),
 		resetCodes:       make(map[string]recoveryCodeEntry),
 		settingsSaves:    make(map[string]*settingsSaveThrottle),

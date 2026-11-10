@@ -8,7 +8,7 @@
   "sources": {
     "pinnedInventoryRows": 342,
     "pinnedRedirectAliases": 50,
-    "goRegistrationFiles": 190,
+    "goRegistrationFiles": 191,
     "goRegistrations": 424,
     "frontendFiles": 68,
     "startupObservedRequests": 229,
@@ -7395,7 +7395,7 @@
       "path": "/api/chats/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats.go:42"
+      "evidence": "internal/server/chats.go:43"
     },
     {
       "pattern": "/api/chats/group/delete",
@@ -7467,7 +7467,7 @@
       "path": "/api/chats/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats.go:35"
+      "evidence": "internal/server/chats.go:36"
     },
     {
       "pattern": "/api/chats/search",

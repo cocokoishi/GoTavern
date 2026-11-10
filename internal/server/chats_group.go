@@ -179,6 +179,23 @@ func (runtime *accountRuntime) serveChatsGroupSave(w http.ResponseWriter, reques
 		}
 		lines = append(lines, string(encoded))
 	}
+	// Pinned /group/save is the SAME trySaveChat path: the integrity check runs
+	// before the write and a mismatch answers 400 {"error":"integrity"}.
+	jsonlData := strings.Join(lines, "\n")
+	backups := runtime.backups()
+	if backups.settings.checkIntegrity && !pinnedBodyForceTruthy(input) {
+		if slug, hasIntegrity := pinnedIntegritySlug(chat); hasIntegrity {
+			matches, integrityErr := pinnedChatIntegrityMatches(chatFilePath, slug)
+			if integrityErr != nil {
+				serveGroupSaveError(w, http.StatusInternalServerError)
+				return
+			}
+			if !matches {
+				respondJSON(w, http.StatusBadRequest, map[string]string{"error": "integrity"})
+				return
+			}
+		}
+	}
 	// tryWriteFileSync creates the parent directory recursively before writing.
 	if err := os.MkdirAll(filepath.Dir(chatFilePath), 0o777); err != nil {
 		serveGroupSaveError(w, http.StatusInternalServerError)
@@ -190,13 +207,15 @@ func (runtime *accountRuntime) serveChatsGroupSave(w http.ResponseWriter, reques
 		return
 	}
 	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath, func([]byte) ([]byte, error) {
-		return []byte(strings.Join(lines, "\n")), nil
+		return []byte(jsonlData), nil
 	}); err != nil {
 		serveGroupSaveError(w, http.StatusInternalServerError)
 		return
 	}
 	faultinject.Hit("chats.group.save.after-write")
-	_ = id
+	// Pinned passes cardName=String(id) to trySaveChat, so a group save schedules the
+	// same throttled backup as a 1:1 save, keyed by handle+" "+id.
+	backups.record(account.string("handle"), id, directories["backups"], jsonlData)
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

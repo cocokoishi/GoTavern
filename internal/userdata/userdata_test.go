@@ -9,6 +9,13 @@ import (
 // able to fail if the policy drifts. The multibyte case is the truncation-boundary discriminator (a
 // byte-boundary truncation would split a rune and produce invalid UTF-8), and the C1 case is the
 // control-character discriminator (nothing else in the pipeline replaces U+0080..U+009F).
+//
+// ALPHA.20 CORRECTION (measured, not re-derived): four replacement-mode rows were WRONG in the version
+// that shipped through alpha.19 -- they encoded the one-pass reading that also made the implementation
+// diverge. The pinned package (node_modules/sanitize-filename/index.js under Node 24.19.0) applies the
+// reserved-name and trailing-run rules by replacing the WHOLE match with the replacement and then
+// re-sanitizing with "", so "..." -> "_", "con.txt" -> "_", "COM1" -> "_" and "name. . " -> "name_".
+// The oracle rows live in a20_sanitize_filename_test.go; these four were corrected rather than deleted.
 func TestSanitizeFilenameMatchesThePinnedSanitizeFilename(t *testing.T) {
 	cases := []struct {
 		name        string
@@ -20,10 +27,10 @@ func TestSanitizeFilenameMatchesThePinnedSanitizeFilename(t *testing.T) {
 		{name: "an empty replacement removes them", input: `a/b?c`, replacement: "", want: "abc"},
 		{name: "C0 controls are replaced", input: "a\x00b\x1fc", replacement: "_", want: "a_b_c"},
 		{name: "C1 controls are replaced", input: "a\u0080b\u009fc", replacement: "_", want: "a_b_c"},
-		{name: "only dots is empty", input: "...", replacement: "_", want: ""},
-		{name: "a reserved device name is empty", input: "con.txt", replacement: "_", want: ""},
-		{name: "a reserved com port is empty", input: "COM1", replacement: "_", want: ""},
-		{name: "trailing dots and spaces are trimmed", input: "name. . ", replacement: "_", want: "name"},
+		{name: "only dots becomes one replacement", input: "...", replacement: "_", want: "_"},
+		{name: "a reserved device name becomes one replacement", input: "con.txt", replacement: "_", want: "_"},
+		{name: "a reserved com port becomes one replacement", input: "COM1", replacement: "_", want: "_"},
+		{name: "trailing dots and spaces become one replacement", input: "name. . ", replacement: "_", want: "name_"},
 		{name: "an ordinary name is unchanged", input: "Seraphina (1).png", replacement: "_", want: "Seraphina (1).png"},
 	}
 	for _, test := range cases {

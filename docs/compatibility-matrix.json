@@ -267,7 +267,8 @@
           "TestPinnedNodeChatsImport",
           "TestPinnedNodeChatsMutations",
           "TestPinnedNodeChatsSearchRecent",
-          "tools/qualify-node-stock-tree.mjs"
+          "tools/qualify-node-stock-tree.mjs",
+          "TestA20ChatIntegrityRejectsAStaleOverwriteBeforeWriting"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -287,7 +288,7 @@
       "blockedBy": [
         "whole-session-e2e"
       ],
-      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.\n\nCLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only. CLOSED 2026-10-31 -- CROSS-RUNTIME CHAT ROUND TRIP (added, not a gap): Go-append + swipe + restart + pinned read/continue + Go re-read over a Node-originated chat is green in node-stock-tree.yml#node-stock-tree; crash-or-kill atomicity remains the open item. CHAT-BACKUP ROUTES IMPLEMENTED (recorded 2026-11-02): /api/backups/chat/get, /delete and /download are implemented and replay-tested against committed oracle fixtures (backups_chat_get.go, backups.go, backups_chat_get_test.go, backups_restore_roundtrip_test.go); the old \"chat backup remains unimplemented\" sentence in this row and in gap rank 3 was stale and is corrected. The fixture knownDifferences entry for /chat/get is a historical recording and is NOT a current claim."
+      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.\n\nCLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only. CLOSED 2026-10-31 -- CROSS-RUNTIME CHAT ROUND TRIP (added, not a gap): Go-append + swipe + restart + pinned read/continue + Go re-read over a Node-originated chat is green in node-stock-tree.yml#node-stock-tree; crash-or-kill atomicity remains the open item. CHAT-BACKUP ROUTES IMPLEMENTED (recorded 2026-11-02): /api/backups/chat/get, /delete and /download are implemented and replay-tested against committed oracle fixtures (backups_chat_get.go, backups.go, backups_chat_get_test.go, backups_restore_roundtrip_test.go); the old \"chat backup remains unimplemented\" sentence in this row and in gap rank 3 was stale and is corrected. The fixture knownDifferences entry for /chat/get is a historical recording and is NOT a current claim.ALPHA.20 CLOSED GAP (2026-11-09): the pinned chat_metadata.integrity check is implemented (missing, empty and legacy files pass; an unparseable or non-object first line is refused; a truthy slug must match with strict equality; body.force is JavaScript-truthy; a mismatch answers 400 {\"error\":\"integrity\"} and changes nothing on disk) and the group-save route now schedules the same throttled backup with key handle+\" \"+String(id). Pinned source: src/endpoints/chats.js:332-369,532-543,922-938 and src/util.js:1560-1578. Guards: internal/server/chats_integrity.go, TestA20ChatIntegrity* and TestA20GroupSave*, with a mutation run showing the disabled guard answers 200 where the tests demand 400. Remaining limit: pinned console.error diagnostics for these branches are not reproduced."
     },
     {
       "id": "groups",
@@ -312,7 +313,8 @@
           "tests/browser/compare-group-chat-legs.mjs",
           "tests/browser/group-chat-record-fixture.mjs",
           "tests/browser/group-chat-comparator-selftest.mjs",
-          "tools/qualify-node-stock-tree.mjs"
+          "tools/qualify-node-stock-tree.mjs",
+          "TestA20GroupSaveChecksIntegrityAndSchedulesThePinnedBackup"
         ],
         "browserArtifacts": [
           "tests/browser/group-chat-comparison.json"
@@ -336,7 +338,7 @@
       "blockedBy": [
         "whole-session-e2e"
       ],
-      "notes": "Group chat is where several characters' prompts are concatenated. The multi-character turn is now measured end to end: group-chat-probe.mjs drives the unmodified pinned frontend against a recording peer on BOTH subjects (pinned Node via run-against-pinned.mjs, GoTavern via its own binary) over the same deterministic tree, and compare-group-chat-legs.mjs compares the exact provider request bytes. Scenarios: 2 and 3 characters, a disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting from card first messages, character-bound + chat-bound + global world info, Author's Note at depth, non-default samplers/stops, user turn, continue, swipe, regenerate, impersonate, context truncation, and a server restart that reloads the same tree before continuing. The committed oracle fixture is the pinned recording (tests/browser/fixtures/group-chat/pinned-oracle.json), re-recorded on every run and refused if it differs."
+      "notes": "Group chat is where several characters' prompts are concatenated. The multi-character turn is now measured end to end: group-chat-probe.mjs drives the unmodified pinned frontend against a recording peer on BOTH subjects (pinned Node via run-against-pinned.mjs, GoTavern via its own binary) over the same deterministic tree, and compare-group-chat-legs.mjs compares the exact provider request bytes. Scenarios: 2 and 3 characters, a disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting from card first messages, character-bound + chat-bound + global world info, Author's Note at depth, non-default samplers/stops, user turn, continue, swipe, regenerate, impersonate, context truncation, and a server restart that reloads the same tree before continuing. The committed oracle fixture is the pinned recording (tests/browser/fixtures/group-chat/pinned-oracle.json), re-recorded on every run and refused if it differs.ALPHA.20 CLOSED GAP (2026-11-09): the pinned chat_metadata.integrity check is implemented (missing, empty and legacy files pass; an unparseable or non-object first line is refused; a truthy slug must match with strict equality; body.force is JavaScript-truthy; a mismatch answers 400 {\"error\":\"integrity\"} and changes nothing on disk) and the group-save route now schedules the same throttled backup with key handle+\" \"+String(id). Pinned source: src/endpoints/chats.js:332-369,532-543,922-938 and src/util.js:1560-1578. Guards: internal/server/chats_integrity.go, TestA20ChatIntegrity* and TestA20GroupSave*, with a mutation run showing the disabled guard answers 200 where the tests demand 400. Remaining limit: pinned console.error diagnostics for these branches are not reproduced."
     },
     {
       "id": "world-info",
