@@ -4,27 +4,27 @@
 
   <style>
     .page { fill: #ffffff; }
-    .kicker { font: 400 12px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 1.6px; fill: #57606a; }
-    .headline { font: 700 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #1f2328; }
-    .headline-accent { font: 700 36px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #0b5f7a; }
-    .subtitle { font: 400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #424a53; }
-    .legend { font: 500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #424a53; }
-    .legend-note { font: 400 12px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
-    .row-label { font: 600 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #1f2328; }
-    .row-note { font: 400 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #424a53; }
-    .row-exact { font: 400 12px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
-    .subject-tag { font: 400 12px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.8px; fill: #57606a; }
-    .value { font: 600 15px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; }
+    .kicker { font: 400 14px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 1.6px; fill: #57606a; }
+    .headline { font: 700 40px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #1f2328; }
+    .headline-accent { font: 700 40px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #0b5f7a; }
+    .subtitle { font: 400 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #424a53; }
+    .legend { font: 500 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #424a53; }
+    .legend-note { font: 400 13px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
+    .row-label { font: 600 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #1f2328; }
+    .row-note { font: 400 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; fill: #424a53; }
+    .row-exact { font: 400 14px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
+    .subject-tag { font: 400 13px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 0.8px; fill: #57606a; }
+    .value { font: 600 18px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; }
     .value-pinned { fill: #1f2328; }
     .value-go { fill: #0b5f7a; }
-    .axis-tick { font: 400 12px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
-    .ratio { font: 700 26px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #0b5f7a; }
-    .verdict { font: 700 13px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 1.4px; fill: #0b5f7a; }
-    .footer { font: 400 12px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
+    .axis-tick { font: 400 14px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
+    .ratio { font: 700 32px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #0b5f7a; }
+    .verdict { font: 700 14px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; letter-spacing: 1.4px; fill: #0b5f7a; }
+    .footer { font: 400 13px ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; fill: #57606a; }
     .hairline { stroke: #d0d7de; stroke-opacity: 0.9; stroke-width: 1; }
     .tick { stroke: #d0d7de; stroke-opacity: 0.9; stroke-width: 1; }
-    .bar-pinned { fill: #b45309; }
-    .bar-go { fill: #0e7490; }
+    .bar-pinned { fill: #bc4c00; }
+    .bar-go { fill: #0969da; }
   </style>
 <rect class="page" x="0" y="0" width="1200" height="675"/>
 <text class="kicker" x="48" y="42">PAIRED BENCHMARK &#183; ONE GITHUB RUNNER &#183; BOTH SERVERS FROM THE SAME CHECKOUT</text>
@@ -36,88 +36,88 @@
 <text class="legend" x="248" y="135">GoTavern</text>
 <text class="legend-note" x="1152" y="135" text-anchor="end">ONE ZERO-BASED AXIS PER ROW; MAXIMUM PRINTED</text>
 <line class="hairline" x1="48" y1="152" x2="1152" y2="152"/>
-<text class="row-label" x="48" y="182">Cold start to first /version 200</text>
-<text class="row-note" x="48" y="202">median of 3 alternating rounds;</text>
-<text class="row-note" x="48" y="219">fresh data root, no config.yaml</text>
-<rect x="300" y="170" width="483.83" height="14" rx="7" class="bar-pinned"/>
-<rect x="300" y="200" width="5.50" height="14" rx="7" class="bar-go"/>
+<text class="row-label" x="48" y="176">Cold start to first /version 200</text>
+<text class="row-note" x="48" y="198">median of 3 alternating rounds;</text>
+<text class="row-note" x="48" y="218">fresh data root, no config.yaml</text>
+<rect x="300" y="164" width="483.83" height="16" rx="8" class="bar-pinned"/>
+<rect x="300" y="196" width="5.50" height="16" rx="8" class="bar-go"/>
 <line class="tick" x1="300" y1="230" x2="800" y2="230"/>
 <line class="tick" x1="300" y1="226" x2="300" y2="234"/>
 <line class="tick" x1="550" y1="226" x2="550" y2="234"/>
 <line class="tick" x1="800" y1="226" x2="800" y2="234"/>
-<text class="axis-tick" x="300" y="247">0 ms</text>
-<text class="axis-tick" x="550" y="247" text-anchor="middle">7,500 ms</text>
-<text class="axis-tick" x="800" y="247" text-anchor="end">15,000 ms</text>
-<text class="subject-tag" x="814" y="182" text-anchor="end">NODE</text>
-<text class="value value-pinned" x="824" y="182">14,515 ms</text>
-<text class="subject-tag" x="814" y="212" text-anchor="end">GO</text>
-<text class="value value-go" x="824" y="212">165 ms</text>
-<text class="ratio" x="976" y="188">87.97×</text>
-<text class="verdict" x="976" y="214">FASTER</text>
-<text class="legend-note" x="976" y="234">COMPUTED</text>
-<line class="hairline" x1="48" y1="256" x2="1152" y2="256"/>
-<text class="row-label" x="48" y="290">Steady-state memory (RSS)</text>
-<text class="row-note" x="48" y="310">median of 6 samples after 30 requests/path;</text>
-<text class="row-note" x="48" y="327">decimal MB (1e6 B); exact bytes:</text>
-<text class="row-exact" x="48" y="344">915,484,672 B vs 40,513,536 B</text>
-<rect x="300" y="278" width="457.74" height="14" rx="7" class="bar-pinned"/>
-<rect x="300" y="308" width="20.26" height="14" rx="7" class="bar-go"/>
-<line class="tick" x1="300" y1="338" x2="800" y2="338"/>
-<line class="tick" x1="300" y1="334" x2="300" y2="342"/>
-<line class="tick" x1="550" y1="334" x2="550" y2="342"/>
-<line class="tick" x1="800" y1="334" x2="800" y2="342"/>
-<text class="axis-tick" x="300" y="355">0 MB</text>
-<text class="axis-tick" x="550" y="355" text-anchor="middle">500 MB</text>
-<text class="axis-tick" x="800" y="355" text-anchor="end">1,000 MB</text>
-<text class="subject-tag" x="814" y="290" text-anchor="end">NODE</text>
-<text class="value value-pinned" x="824" y="290">915 MB</text>
-<text class="subject-tag" x="814" y="320" text-anchor="end">GO</text>
-<text class="value value-go" x="824" y="320">40.5 MB</text>
-<text class="ratio" x="976" y="296">22.60×</text>
-<text class="verdict" x="976" y="322">LIGHTER</text>
-<text class="legend-note" x="976" y="342">COMPUTED</text>
-<line class="hairline" x1="48" y1="364" x2="1152" y2="364"/>
-<text class="row-label" x="48" y="398">GET /version latency</text>
-<text class="row-note" x="48" y="418">median of 90 sequential requests;</text>
-<text class="row-note" x="48" y="435">p95 70.33 ms / 0.596 ms</text>
-<rect x="300" y="386" width="409.68" height="14" rx="7" class="bar-pinned"/>
-<rect x="300" y="416" width="5.00" height="14" rx="7" class="bar-go"/>
-<line class="tick" x1="300" y1="446" x2="800" y2="446"/>
-<line class="tick" x1="300" y1="442" x2="300" y2="450"/>
-<line class="tick" x1="550" y1="442" x2="550" y2="450"/>
-<line class="tick" x1="800" y1="442" x2="800" y2="450"/>
-<text class="axis-tick" x="300" y="463">0 ms</text>
-<text class="axis-tick" x="550" y="463" text-anchor="middle">40 ms</text>
-<text class="axis-tick" x="800" y="463" text-anchor="end">80 ms</text>
-<text class="subject-tag" x="814" y="398" text-anchor="end">NODE</text>
-<text class="value value-pinned" x="824" y="398">65.55 ms</text>
-<text class="subject-tag" x="814" y="428" text-anchor="end">GO</text>
-<text class="value value-go" x="824" y="428">0.429 ms</text>
-<text class="ratio" x="976" y="404">152.9×</text>
-<text class="verdict" x="976" y="430">FASTER</text>
-<text class="legend-note" x="976" y="450">COMPUTED</text>
-<line class="hairline" x1="48" y1="472" x2="1152" y2="472"/>
-<text class="row-label" x="48" y="506">GET / latency (HTML shell)</text>
-<text class="row-note" x="48" y="526">median of 90 sequential requests;</text>
-<text class="row-note" x="48" y="543">body fully consumed</text>
-<rect x="300" y="494" width="459.34" height="14" rx="7" class="bar-pinned"/>
-<rect x="300" y="524" width="286.31" height="14" rx="7" class="bar-go"/>
-<line class="tick" x1="300" y1="554" x2="800" y2="554"/>
-<line class="tick" x1="300" y1="550" x2="300" y2="558"/>
-<line class="tick" x1="550" y1="550" x2="550" y2="558"/>
-<line class="tick" x1="800" y1="550" x2="800" y2="558"/>
-<text class="axis-tick" x="300" y="571">0 ms</text>
-<text class="axis-tick" x="550" y="571" text-anchor="middle">7.5 ms</text>
-<text class="axis-tick" x="800" y="571" text-anchor="end">15 ms</text>
-<text class="subject-tag" x="814" y="506" text-anchor="end">NODE</text>
-<text class="value value-pinned" x="824" y="506">13.78 ms</text>
-<text class="subject-tag" x="814" y="536" text-anchor="end">GO</text>
-<text class="value value-go" x="824" y="536">8.59 ms</text>
-<text class="ratio" x="976" y="512">1.60×</text>
-<text class="verdict" x="976" y="538">FASTER</text>
-<text class="legend-note" x="976" y="558">COMPUTED</text>
-<line class="hairline" x1="48" y1="598" x2="1152" y2="598"/>
-<text class="footer" x="48" y="616">generated by tools/benchmark-svg.mjs from tests/perf/q22-baseline.json &#183; run 42012475880 &#183; commit f1396ce &#183; ubuntu26 &#183; 3 rounds &#215; 30 requests/path</text>
-<text class="footer" x="48" y="632">memory decimal MB (1e6 B); other numbers ms &#183; ratios computed from the two printed values &#183; bar floor is legibility only, values/axes/ratios unaffected</text>
-<text class="footer" x="48" y="648">light variant &#183; self-contained: no external font, image, script or network reference &#183; never hand-edited</text>
+<text class="axis-tick" x="300" y="252">0 ms</text>
+<text class="axis-tick" x="550" y="252" text-anchor="middle">7,500 ms</text>
+<text class="axis-tick" x="800" y="252" text-anchor="end">15,000 ms</text>
+<text class="subject-tag" x="814" y="176" text-anchor="end">NODE</text>
+<text class="value value-pinned" x="824" y="176">14,515 ms</text>
+<text class="subject-tag" x="814" y="208" text-anchor="end">GO</text>
+<text class="value value-go" x="824" y="208">165 ms</text>
+<text class="ratio" x="976" y="184">87.97×</text>
+<text class="verdict" x="976" y="210">FASTER</text>
+<text class="legend-note" x="976" y="232">COMPUTED</text>
+<line class="hairline" x1="48" y1="258" x2="1152" y2="258"/>
+<text class="row-label" x="48" y="292">Steady-state memory (RSS)</text>
+<text class="row-note" x="48" y="314">median of 6 samples after 30 requests/path;</text>
+<text class="row-note" x="48" y="334">decimal MB (1e6 B); exact bytes:</text>
+<text class="row-exact" x="48" y="354">915,484,672 B vs 40,513,536 B</text>
+<rect x="300" y="280" width="457.74" height="16" rx="8" class="bar-pinned"/>
+<rect x="300" y="312" width="20.26" height="16" rx="8" class="bar-go"/>
+<line class="tick" x1="300" y1="346" x2="800" y2="346"/>
+<line class="tick" x1="300" y1="342" x2="300" y2="350"/>
+<line class="tick" x1="550" y1="342" x2="550" y2="350"/>
+<line class="tick" x1="800" y1="342" x2="800" y2="350"/>
+<text class="axis-tick" x="300" y="368">0 MB</text>
+<text class="axis-tick" x="550" y="368" text-anchor="middle">500 MB</text>
+<text class="axis-tick" x="800" y="368" text-anchor="end">1,000 MB</text>
+<text class="subject-tag" x="814" y="292" text-anchor="end">NODE</text>
+<text class="value value-pinned" x="824" y="292">915 MB</text>
+<text class="subject-tag" x="814" y="324" text-anchor="end">GO</text>
+<text class="value value-go" x="824" y="324">40.5 MB</text>
+<text class="ratio" x="976" y="300">22.60×</text>
+<text class="verdict" x="976" y="326">LIGHTER</text>
+<text class="legend-note" x="976" y="348">COMPUTED</text>
+<line class="hairline" x1="48" y1="374" x2="1152" y2="374"/>
+<text class="row-label" x="48" y="408">GET /version latency</text>
+<text class="row-note" x="48" y="430">median of 90 sequential requests;</text>
+<text class="row-note" x="48" y="450">p95 70.33 ms / 0.596 ms</text>
+<rect x="300" y="396" width="409.68" height="16" rx="8" class="bar-pinned"/>
+<rect x="300" y="428" width="5.00" height="16" rx="8" class="bar-go"/>
+<line class="tick" x1="300" y1="462" x2="800" y2="462"/>
+<line class="tick" x1="300" y1="458" x2="300" y2="466"/>
+<line class="tick" x1="550" y1="458" x2="550" y2="466"/>
+<line class="tick" x1="800" y1="458" x2="800" y2="466"/>
+<text class="axis-tick" x="300" y="484">0 ms</text>
+<text class="axis-tick" x="550" y="484" text-anchor="middle">40 ms</text>
+<text class="axis-tick" x="800" y="484" text-anchor="end">80 ms</text>
+<text class="subject-tag" x="814" y="408" text-anchor="end">NODE</text>
+<text class="value value-pinned" x="824" y="408">65.55 ms</text>
+<text class="subject-tag" x="814" y="440" text-anchor="end">GO</text>
+<text class="value value-go" x="824" y="440">0.429 ms</text>
+<text class="ratio" x="976" y="416">152.9×</text>
+<text class="verdict" x="976" y="442">FASTER</text>
+<text class="legend-note" x="976" y="464">COMPUTED</text>
+<line class="hairline" x1="48" y1="490" x2="1152" y2="490"/>
+<text class="row-label" x="48" y="524">GET / latency (HTML shell)</text>
+<text class="row-note" x="48" y="546">median of 90 sequential requests;</text>
+<text class="row-note" x="48" y="566">body fully consumed</text>
+<rect x="300" y="512" width="459.34" height="16" rx="8" class="bar-pinned"/>
+<rect x="300" y="544" width="286.31" height="16" rx="8" class="bar-go"/>
+<line class="tick" x1="300" y1="578" x2="800" y2="578"/>
+<line class="tick" x1="300" y1="574" x2="300" y2="582"/>
+<line class="tick" x1="550" y1="574" x2="550" y2="582"/>
+<line class="tick" x1="800" y1="574" x2="800" y2="582"/>
+<text class="axis-tick" x="300" y="600">0 ms</text>
+<text class="axis-tick" x="550" y="600" text-anchor="middle">7.5 ms</text>
+<text class="axis-tick" x="800" y="600" text-anchor="end">15 ms</text>
+<text class="subject-tag" x="814" y="524" text-anchor="end">NODE</text>
+<text class="value value-pinned" x="824" y="524">13.78 ms</text>
+<text class="subject-tag" x="814" y="556" text-anchor="end">GO</text>
+<text class="value value-go" x="824" y="556">8.59 ms</text>
+<text class="ratio" x="976" y="532">1.60×</text>
+<text class="verdict" x="976" y="558">FASTER</text>
+<text class="legend-note" x="976" y="580">COMPUTED</text>
+<line class="hairline" x1="48" y1="620" x2="1152" y2="620"/>
+<text class="footer" x="48" y="638">generated from tests/perf/q22-baseline.json &#183; run 42012475880 &#183; commit f1396ce &#183; 3 rounds &#215; 30 requests/path</text>
+<text class="footer" x="48" y="654">memory decimal MB (1e6 B); other values ms &#183; ratios computed from the two printed values &#183; bar floor is legibility only</text>
+<text class="footer" x="48" y="670">light variant &#183; blue/orange colour-blind-safe pair &#183; no external font, image, script or network reference &#183; never hand-edited</text>
 </svg>

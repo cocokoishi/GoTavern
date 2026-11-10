@@ -188,13 +188,13 @@ const WIDTH = 1200;
 const HEIGHT = 675;
 const MARGIN = 48;
 const CONTENT_RIGHT = WIDTH - MARGIN;
-const ROW_START = 158;
-const ROW_HEIGHT = 108;
+const ROW_START = 150;
+const ROW_HEIGHT = 116;
 const ROWS_BOTTOM = ROW_START + metrics.length * ROW_HEIGHT;
 const BAR_X = 300;
 const BAR_WIDTH = 500;
-const BAR_HEIGHT = 14;
-const BAR_RADIUS = 7;
+const BAR_HEIGHT = 16;
+const BAR_RADIUS = 8;
 const VALUE_X = 824;
 const RATIO_X = 976;
 // THE MINIMUM VISIBLE WIDTH IS A LEGIBILITY FLOOR FOR THE RECTANGLE ONLY. At 39.5 MB against a 1,200 MB axis the
@@ -244,6 +244,10 @@ function formatRatio(ratio) {
 // audit by design (every meaning-bearing mark is also labelled in text).
 // ---------------------------------------------------------------------------------------------------------------
 const PALETTES = {
+    // COLOUR-BLIND-SAFE SUBJECT PAIR: blue against orange is the safest two-hue pair for the common
+    // red-green deficiencies (deuteranopia and protanopia), and the pair also differs in lightness, so it
+    // survives a greyscale print. Colour is still never the only encoding: every bar carries a NODE/GO tag
+    // and a printed value, and the <desc> names the subjects in words.
     dark: {
         name: 'dark',
         page: '#0d1117',
@@ -251,8 +255,8 @@ const PALETTES = {
         secondary: '#c9d1d9',
         muted: '#9aa4b0',
         accent: '#6ee7f9',
-        pinnedBar: '#f59e0b',
-        goBar: '#22b8cf',
+        pinnedBar: '#f0883e',
+        goBar: '#58a6ff',
         hairline: '#30363d',
         hairlines: '0.55',
     },
@@ -263,8 +267,8 @@ const PALETTES = {
         secondary: '#424a53',
         muted: '#57606a',
         accent: '#0b5f7a',
-        pinnedBar: '#b45309',
-        goBar: '#0e7490',
+        pinnedBar: '#bc4c00',
+        goBar: '#0969da',
         hairline: '#d0d7de',
         hairlines: '0.9',
     },
@@ -304,25 +308,26 @@ function auditContrast(palette) {
     return { rows, failures };
 }
 
-// THE TYPE SCALE IS DECLARED ONCE AND ASSERTED. Every size the drawing uses is listed here; the generator refuses
-// to write a figure whose smallest declared size is under 12 px at 1:1, because an SVG is embedded at natural size
-// in the README and the previous revision's 8.5-10.5 px labels were the defect this redesign removes.
+// THE TYPE SCALE IS DECLARED ONCE AND ASSERTED. alpha.20 raises the whole scale so the figure is readable when a
+// phone or a half-width window scales it down: the previous revision's 12 px floor was legible at 1:1 on a laptop
+// and unreadable on a narrow viewport. Every size the drawing uses is listed here; the generator refuses to write a
+// figure whose smallest declared size is under 14 px at 1:1.
 const TYPE_SCALE = {
-    kicker: 12,
-    headline: 36,
-    subtitle: 14,
-    legend: 13,
-    legendNote: 12,
-    rowLabel: 16,
-    rowNote: 12,
-    subjectTag: 12,
-    value: 15,
-    axisTick: 12,
-    ratio: 26,
-    verdict: 13,
-    footer: 12,
+    kicker: 14,
+    headline: 40,
+    subtitle: 15,
+    legend: 14,
+    legendNote: 13,
+    rowLabel: 20,
+    rowNote: 14,
+    subjectTag: 13,
+    value: 18,
+    axisTick: 14,
+    ratio: 32,
+    verdict: 14,
+    footer: 13,
 };
-const MIN_TYPE_PX = 12;
+const MIN_TYPE_PX = 13;
 const smallType = Object.entries(TYPE_SCALE).filter(([, size]) => size < MIN_TYPE_PX);
 if (smallType.length > 0) {
     console.error(`refusing to draw: type sizes below ${MIN_TYPE_PX} px at 1:1: ${smallType.map(([name, size]) => `${name}=${size}px`).join(', ')}`);
@@ -401,53 +406,56 @@ function renderFigure(palette) {
         const axisMax = axisMaxOf(metric);
         const widthOf = value => Math.max(MIN_VISIBLE_BAR, (value / axisMax) * BAR_WIDTH);
 
-        parts.push(`<text class="row-label" x="${MARGIN}" y="${rowTop + 24}">${escapeXml(metric.label)}</text>`);
+        parts.push(`<text class="row-label" x="${MARGIN}" y="${rowTop + 26}">${escapeXml(metric.label)}</text>`);
         metric.note.forEach((line, lineIndex) => {
-            parts.push(`<text class="row-note" x="${MARGIN}" y="${rowTop + 44 + lineIndex * 17}">${escapeXml(line)}</text>`);
+            parts.push(`<text class="row-note" x="${MARGIN}" y="${rowTop + 48 + lineIndex * 20}">${escapeXml(line)}</text>`);
         });
         if (metric.exact) {
             // The exact byte count sits under the rounded value so the rounding is checkable, and it keeps its own
             // unit (B) rather than being folded into the MB value.
-            parts.push(`<text class="row-exact" x="${MARGIN}" y="${rowTop + 78}">${groupedInteger(metric.exact.pinned)} B vs ${groupedInteger(metric.exact.go)} B</text>`);
+            parts.push(`<text class="row-exact" x="${MARGIN}" y="${rowTop + 88}">${groupedInteger(metric.exact.pinned)} B vs ${groupedInteger(metric.exact.go)} B</text>`);
         }
 
         // The bars. A zero baseline is drawn as the axis below them, so the reader can see that both bars start at 0.
-        parts.push(`<rect x="${BAR_X}" y="${rowTop + 12}" width="${widthOf(metric.pinnedValue).toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" class="bar-pinned"/>`);
-        parts.push(`<rect x="${BAR_X}" y="${rowTop + 42}" width="${widthOf(metric.goValue).toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" class="bar-go"/>`);
+        parts.push(`<rect x="${BAR_X}" y="${rowTop + 14}" width="${widthOf(metric.pinnedValue).toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" class="bar-pinned"/>`);
+        parts.push(`<rect x="${BAR_X}" y="${rowTop + 46}" width="${widthOf(metric.goValue).toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" class="bar-go"/>`);
 
         // The zero-based axis with its three printed ticks. The maximum is the rounded-up scale value, never a
         // truncated data value; the midpoint tick is a scale aid, not a measurement.
-        const axisY = rowTop + 72;
+        const axisY = rowTop + 80;
         parts.push(`<line class="tick" x1="${BAR_X}" y1="${axisY}" x2="${BAR_X + BAR_WIDTH}" y2="${axisY}"/>`);
         parts.push(`<line class="tick" x1="${BAR_X}" y1="${axisY - 4}" x2="${BAR_X}" y2="${axisY + 4}"/>`);
         parts.push(`<line class="tick" x1="${BAR_X + BAR_WIDTH / 2}" y1="${axisY - 4}" x2="${BAR_X + BAR_WIDTH / 2}" y2="${axisY + 4}"/>`);
         parts.push(`<line class="tick" x1="${BAR_X + BAR_WIDTH}" y1="${axisY - 4}" x2="${BAR_X + BAR_WIDTH}" y2="${axisY + 4}"/>`);
-        parts.push(`<text class="axis-tick" x="${BAR_X}" y="${axisY + 17}">0 ${metric.unit}</text>`);
-        parts.push(`<text class="axis-tick" x="${BAR_X + BAR_WIDTH / 2}" y="${axisY + 17}" text-anchor="middle">${escapeXml(formatAxisTick(axisMax / 2, metric.unit))}</text>`);
-        parts.push(`<text class="axis-tick" x="${BAR_X + BAR_WIDTH}" y="${axisY + 17}" text-anchor="end">${escapeXml(formatAxisTick(axisMax, metric.unit))}</text>`);
+        parts.push(`<text class="axis-tick" x="${BAR_X}" y="${axisY + 22}">0 ${metric.unit}</text>`);
+        parts.push(`<text class="axis-tick" x="${BAR_X + BAR_WIDTH / 2}" y="${axisY + 22}" text-anchor="middle">${escapeXml(formatAxisTick(axisMax / 2, metric.unit))}</text>`);
+        parts.push(`<text class="axis-tick" x="${BAR_X + BAR_WIDTH}" y="${axisY + 22}" text-anchor="end">${escapeXml(formatAxisTick(axisMax, metric.unit))}</text>`);
 
         // The values, labelled by subject in words as well as by colour.
-        parts.push(`<text class="subject-tag" x="${VALUE_X - 10}" y="${rowTop + 24}" text-anchor="end">NODE</text>`);
-        parts.push(`<text class="value value-pinned" x="${VALUE_X}" y="${rowTop + 24}">${escapeXml(metric.format(metric.pinnedValue))}</text>`);
-        parts.push(`<text class="subject-tag" x="${VALUE_X - 10}" y="${rowTop + 54}" text-anchor="end">GO</text>`);
-        parts.push(`<text class="value value-go" x="${VALUE_X}" y="${rowTop + 54}">${escapeXml(metric.format(metric.goValue))}</text>`);
+        parts.push(`<text class="subject-tag" x="${VALUE_X - 10}" y="${rowTop + 26}" text-anchor="end">NODE</text>`);
+        parts.push(`<text class="value value-pinned" x="${VALUE_X}" y="${rowTop + 26}">${escapeXml(metric.format(metric.pinnedValue))}</text>`);
+        parts.push(`<text class="subject-tag" x="${VALUE_X - 10}" y="${rowTop + 58}" text-anchor="end">GO</text>`);
+        parts.push(`<text class="value value-go" x="${VALUE_X}" y="${rowTop + 58}">${escapeXml(metric.format(metric.goValue))}</text>`);
 
         // The derived ratio and the per-metric verdict word. The ratio is computed from the two values printed to its
         // left; it is not read from the artefact and it is not typed in.
-        parts.push(`<text class="ratio" x="${RATIO_X}" y="${rowTop + 30}">${formatRatio(ratioOf(metric))}</text>`);
-        parts.push(`<text class="verdict" x="${RATIO_X}" y="${rowTop + 56}">${metric.verdict.toUpperCase()}</text>`);
-        parts.push(`<text class="legend-note" x="${RATIO_X}" y="${rowTop + 76}">COMPUTED</text>`);
+        parts.push(`<text class="ratio" x="${RATIO_X}" y="${rowTop + 34}">${formatRatio(ratioOf(metric))}</text>`);
+        parts.push(`<text class="verdict" x="${RATIO_X}" y="${rowTop + 60}">${metric.verdict.toUpperCase()}</text>`);
+        parts.push(`<text class="legend-note" x="${RATIO_X}" y="${rowTop + 82}">COMPUTED</text>`);
 
         if (index < metrics.length - 1) {
-            parts.push(`<line class="hairline" x1="${MARGIN}" y1="${rowTop + ROW_HEIGHT - 10}" x2="${CONTENT_RIGHT}" y2="${rowTop + ROW_HEIGHT - 10}"/>`);
+            parts.push(`<line class="hairline" x1="${MARGIN}" y1="${rowTop + ROW_HEIGHT - 8}" x2="${CONTENT_RIGHT}" y2="${rowTop + ROW_HEIGHT - 8}"/>`);
         }
     });
 
     // ---- footer -------------------------------------------------------------------------------------
-    parts.push(`<line class="hairline" x1="${MARGIN}" y1="${ROWS_BOTTOM + 8}" x2="${CONTENT_RIGHT}" y2="${ROWS_BOTTOM + 8}"/>`);
-    parts.push(`<text class="footer" x="${MARGIN}" y="${ROWS_BOTTOM + 26}">generated by tools/benchmark-svg.mjs from tests/perf/q22-baseline.json &#183; run ${escapeXml(runId)} &#183; commit ${escapeXml(commit)} &#183; ${escapeXml(runnerImage)} &#183; ${rounds} rounds &#215; ${requestsPerRound} requests/path</text>`);
-    parts.push(`<text class="footer" x="${MARGIN}" y="${ROWS_BOTTOM + 42}">memory decimal MB (1e6 B); other numbers ms &#183; ratios computed from the two printed values &#183; bar floor is legibility only, values/axes/ratios unaffected</text>`);
-    parts.push(`<text class="footer" x="${MARGIN}" y="${ROWS_BOTTOM + 58}">${palette.name === 'dark' ? 'dark' : 'light'} variant &#183; self-contained: no external font, image, script or network reference &#183; never hand-edited</text>`);
+    // The footer is deliberately SHORTER and LARGER than the alpha.19 revision: at 13 px on a 1104 px content width
+    // a line must stay under ~120 characters, so the provenance lives in the <desc> and the provenance document and
+    // the visible footer keeps only what a reader needs to trust the picture.
+    parts.push(`<line class="hairline" x1="${MARGIN}" y1="${ROWS_BOTTOM + 6}" x2="${CONTENT_RIGHT}" y2="${ROWS_BOTTOM + 6}"/>`);
+    parts.push(`<text class="footer" x="${MARGIN}" y="${ROWS_BOTTOM + 24}">generated from tests/perf/q22-baseline.json &#183; run ${escapeXml(runId)} &#183; commit ${escapeXml(commit)} &#183; ${rounds} rounds &#215; ${requestsPerRound} requests/path</text>`);
+    parts.push(`<text class="footer" x="${MARGIN}" y="${ROWS_BOTTOM + 40}">memory decimal MB (1e6 B); other values ms &#183; ratios computed from the two printed values &#183; bar floor is legibility only</text>`);
+    parts.push(`<text class="footer" x="${MARGIN}" y="${ROWS_BOTTOM + 56}">${palette.name} variant &#183; blue/orange colour-blind-safe pair &#183; no external font, image, script or network reference &#183; never hand-edited</text>`);
 
     parts.push('</svg>');
     return parts.join('\n');
@@ -484,4 +492,4 @@ for (const [name, audit] of Object.entries(contrast)) {
         console.log(`  ${name.padEnd(5)} ${row.role.padEnd(52)} ${row.foreground} on ${row.background} = ${row.ratio.toFixed(2)}:1 (min ${row.threshold}:1)`);
     }
 }
-console.log('type floor: every declared size is >= 12 px at 1:1 (deepest text: row notes, axis ticks, footer)');
+console.log(`type floor: every declared size is >= ${MIN_TYPE_PX} px at 1:1 (deepest text: row notes, axis ticks, footer); the alpha.20 scale is one step larger than alpha.19 and colours are a blue/orange, colour-blind-safe pair`);

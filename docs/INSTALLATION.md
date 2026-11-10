@@ -77,20 +77,20 @@ BUILD-INFO.txt            # GoTavern version + pinned ST version/SHA
 
 ### Unix-like systems
 
-Install a published release into the directory you are in. **The version must be given explicitly while the
-newest release is a prerelease:**
+Install a published release into the directory you are in. Pinning a version is recommended for a reproducible
+deployment or a rollback target; omitting the flag resolves `releases/latest`, the same URL a browser would open.
 
 ```sh
 mkdir GoTavern
 cd GoTavern
 
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | sh -s -- --version v0.1.0-alpha.8
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.19/install.sh | sh -s -- --version v0.1.0-alpha.19
 ```
 
-**Why the version is not optional yet.** Without `--version` the installer uses `releases/latest/download`,
-which GitHub resolves to the newest **stable** release. No stable release exists yet, so that URL returns
-**404**. This is deliberate: an unpinned `curl | sh` must never hand a stranger a prerelease. Once a stable
-tag exists the flag becomes optional and the plain unpinned form starts working on its own.
+**A pinned form is shown above** because this tree ships `v0.1.0-alpha.19` and a rollback needs a tag; the
+`--version` flag accepts any published tag. (Historical note: before the first prebuilt release existed the
+unpinned form returned 404; that is no longer the state — the release workflow publishes the archive the
+installers fetch.)
 
 Default installation directory — **the caller's current working directory**:
 
@@ -103,7 +103,7 @@ in. `--dir` remains an **advanced override** — for example to keep several ins
 normal invocation does not need it:
 
 ```sh
-sh install.sh --version v0.1.0-alpha.8 --dir "$HOME/servers/GoTavern"
+sh install.sh --version v0.1.0-alpha.19 --dir "$HOME/servers/GoTavern"
 ```
 
 The contract is executed rather than asserted in prose: `scripts/test-install-sh.sh` runs four cases against
@@ -115,19 +115,19 @@ removal by the operator; the installer never deletes runtime state.
 
 ### Windows PowerShell
 
-Install a published release into the directory you are in. **The version must be given explicitly while the
-newest release is a prerelease:**
+Install a published release into the directory you are in. As on Unix, pinning a version is recommended for a
+reproducible deployment or a rollback target; omitting the flag resolves `releases/latest`.
 
 ```powershell
 mkdir GoTavern
 cd GoTavern
 
-irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version v0.1.0-alpha.8
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.19/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0-alpha.19
 ```
 
-The same version reason applies as on Unix: without `-Version` the script uses `releases/latest/download`,
-which resolves to the newest **stable** release, and none exists yet.
+**A pinned form is shown above** for the same reason as on Unix: this tree ships `v0.1.0-alpha.19`, and a
+rollback needs a tag. `-Version` accepts any published tag.
 
 Default installation directory — **the caller's current working directory**:
 
@@ -142,7 +142,7 @@ It is `Get-Location`, deliberately, and not the script's own directory: `C:\Tool
 side — and the normal invocation does not need it:
 
 ```powershell
-.\install.ps1 -Version v0.1.0-alpha.8 -InstallDir "D:\Servers\GoTavern"
+.\install.ps1 -Version v0.1.0-alpha.19 -InstallDir "D:\Servers\GoTavern"
 ```
 
 The install location contract is executed, not asserted in prose: `scripts/test-install-ps1.ps1` runs four
