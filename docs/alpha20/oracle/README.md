@@ -36,8 +36,9 @@ tree itself stays outside the repository; only the manifest and this report are 
 the Tavern Helper evidence (including one recorded live version-check egress) and the disclosed boundary that
 chats created through the product's New Chat function are PRODUCT-NATIVE, not UI-created. Committed artifacts:
 [`corpus-medium-manifest.json`](corpus-medium-manifest.json) and
-[`corpus-medium-report.json`](corpus-medium-report.json). `pinned-data-template.md` is written only when the
-template provenance probe has run.
+[`corpus-medium-report.json`](corpus-medium-report.json). [`pinned-data-template.md`](pinned-data-template.md)
+records the product-produced fresh-install template every probe copies (209 files / 30,065,637 B / tree
+`3fae9dee…`, cold boot 202,176 ms).
 
 ## Oracle strengthening (M3)
 
