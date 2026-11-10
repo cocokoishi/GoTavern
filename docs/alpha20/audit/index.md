@@ -12,6 +12,7 @@ live in working notes, never here. Severity: Critical / High / Medium / Low.
 | A20-D | High | chats: `chat_metadata.integrity` not enforced on save | **FIXED** (`fb24983`, Lead) | [A20-D](A20-D-chat-integrity.md) |
 | A20-E | High | chats: group save never scheduled the pinned backup | **FIXED** (`fb24983`, Lead) | [A20-E](A20-E-group-save-backup.md) |
 | A20-F | Medium | characters: the card base64 decoder rejected payloads pinned's lenient `Buffer.from(text,'base64')` reads (URL-safe `-`/`_`, interior junk, `=` handling, lone leftover char) | **FIXED** (`138d177`, source-audit lane) | [A20-F](A20-F-card-base64.md) |
+| A20-G | High | characters: avatar edit/replace/delete never invalidated the cached thumbnail (stale avatar rendered; delete+recreate showed the deleted character's face) | **FIXED** (`0afe330`, source-audit lane) | [A20-G](A20-G.md) |
 
 ## Integration notes
 
