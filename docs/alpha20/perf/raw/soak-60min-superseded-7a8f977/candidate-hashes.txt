@@ -1,0 +1,10 @@
+soakSubjectSha=7a8f9776455dca7ef9eb42f6337e4e2846ddf828
+soakSubjectBinarySha256=62542625E17F89C9DF70F8335E8F674AC9F1BE4541DD04A0D02C3B4BB1FCB77C
+finalCandidateSha=fc30e38e667dc2373a672da0582bbf51665b7974
+finalCandidateBinarySha256=941496B6678D586886F0E8F4975DA84F05FF4A6445B167D6CC9243171E9CA130
+withVcsByteIdentical=False
+reason=Go embeds vcs.revision/vcs.time and the module pseudo-version in buildinfo; git diff 7a8f977 fc30e38 -- '*.go' cmd internal is EMPTY and the only changed file is tests/browser/a20-probe-kit.mjs
+noVcs7a8f977Sha256=6C00D8D23A86359ADA8515AC44A508A3655226FD35555744BA12383CD36FFFC0
+noVcsFc30e38Sha256=6C00D8D23A86359ADA8515AC44A508A3655226FD35555744BA12383CD36FFFC0
+noVcsByteIdentical=True
+buildFlags=-trimpath -ldflags="-s -w"
