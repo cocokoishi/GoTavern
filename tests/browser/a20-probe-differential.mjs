@@ -71,6 +71,15 @@ async function backupsState(dir) {
         .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 }
 
+/** The raw backup files with content digests (raw names, so same-second backups are distinguishable). */
+async function backupFiles(dir) {
+    const entries = await census(dir).catch(() => []);
+    return entries.filter(entry => entry.path.endsWith('.jsonl')).map(entry => ({ name: entry.path, sha256: entry.sha256, bytes: entry.bytes }));
+}
+
+const BACKUP_NAME = /^chat_[a-z0-9_]+_\d{8}-\d{6}\.jsonl$/;
+const namePatternOk = names => names.every(name => BACKUP_NAME.test(name));
+
 async function stopAndReboot(subject, dataRoot, binary) {
     const exit = await subject.server.stop();
     const server = subject.kind === 'pinned'
@@ -93,9 +102,9 @@ async function settleBackups(dir, { stableForMs = 3000, timeoutMs = 25000 } = {}
     let last = null;
     let lastChange = Date.now();
     while (Date.now() - started < timeoutMs) {
-        const census = stableStringify(await census(dir).catch(() => []));
-        if (last === null) { last = census; lastChange = Date.now(); }
-        else if (census !== last) { last = census; lastChange = Date.now(); }
+        const signature = stableStringify(await census(dir).catch(() => []));
+        if (last === null) { last = signature; lastChange = Date.now(); }
+        else if (signature !== last) { last = signature; lastChange = Date.now(); }
         else if (Date.now() - lastChange >= stableForMs) {
             return { stable: true, waitedMs: Date.now() - started };
         }
@@ -113,29 +122,35 @@ async function settleBackups(dir, { stableForMs = 3000, timeoutMs = 25000 } = {}
  * This replaces the per-save snapshot comparison, which raced the trailing timer.
  */
 async function observeBackupScheduler({ save, backupsDir, label }) {
+    // ENSURE THE THROTTLE WINDOW IS CLOSED BEFORE THE MEASURED SAVE. A filesystem-stability wait alone is
+    // not enough: a trailing invocation pending from an earlier save is not a filesystem change, so the
+    // measured save could land inside the previous window and be throttled (no leading backup), which is a
+    // legitimate scheduler state but not the one this row measures. The default interval is 10 s; wait it
+    // out, then let any late timer land before snapshotting.
+    await delay(11000);
     const settleBefore = await settleBackups(backupsDir);
-    const before = await backupsState(backupsDir);
+    const before = await backupFiles(backupsDir);
     const payloadBody = chatArray({ messages: [`scheduler ${label} payload`] });
     const response = await save({ chat: payloadBody, force: true });
     await delay(500);
-    const immediate = await backupsState(backupsDir);
-    const payloadSha = sha256(Buffer.from(payloadBody.map(item => JSON.stringify(item)).join('\n'), 'utf8'));
-    const immediateAdded = immediate.filter(entry => !before.some(previous => previous.name === entry.name));
+    const immediate = await backupFiles(backupsDir);
+    const immediateAdded = immediate.filter(file => !before.some(previous => previous.name === file.name));
     const settleAfter = await settleBackups(backupsDir);
-    const settled = await backupsState(backupsDir);
-    const trailingAdded = settled.filter(entry => !immediate.some(previous => previous.name === entry.name));
-    const namesNormalized = settled.map(entry => entry.name);
+    const settled = await backupFiles(backupsDir);
+    const trailingAdded = settled.filter(file => !immediate.some(previous => previous.name === file.name));
+    const payloadSha = sha256(Buffer.from(payloadBody.map(item => JSON.stringify(item)).join('\n'), 'utf8'));
     return {
         status: response.status,
         bodyText: response.bodyText,
-        settleBefore,
-        settleAfter,
+        settleBeforeStable: settleBefore.stable,
+        settleAfterStable: settleAfter.stable,
         immediateAddedCount: immediateAdded.length,
         immediateAddedShaMatchesPayload: immediateAdded.length === 1 && immediateAdded[0].sha256 === payloadSha,
         trailingAddedCount: trailingAdded.length,
         trailingAddedShaMatchesPayload: trailingAdded.length === 1 && trailingAdded[0].sha256 === payloadSha,
         totalAddedAcrossWindow: settled.length - before.length,
-        namesNormalized,
+        backupNamePatternOk: namePatternOk(settled.map(file => file.name)),
+        backupShaMultiset: settled.map(file => file.sha256).sort(),
     };
 }
 
@@ -268,22 +283,24 @@ async function runGroupLeg(kind, binary) {
     // flush-on-close: after the scheduler row the window is CLOSED, so the first save below is
     // deterministically a leading invocation (one backup before the stop) and the second one is the
     // pending trailing invocation that only the exit flush can materialise.
-    const beforeFlush = await backupsState(backupsDir);
+    const beforeFlush = await backupFiles(backupsDir);
     const f1 = await save({ id: GROUP_ID, chat: groupArray({ integrity: 'diff-group-beta', messages: ['flush one'] }), force: true });
     const f2 = await save({ id: GROUP_ID, chat: groupArray({ integrity: 'diff-group-beta', messages: ['flush two'] }), force: true });
-    const beforeStop = await backupsState(backupsDir);
+    const beforeStop = await backupFiles(backupsDir);
     const stopResult = await subject.server.stop();
-    const afterFlush = await backupsState(backupsDir);
+    const afterFlush = await backupFiles(backupsDir);
     rows.push({
         id: 'G8-flush-on-close',
         status: [f1.status, f2.status],
         bodyText: [f1.bodyText, f2.bodyText],
         backupsAddedBeforeStop: beforeStop.length - beforeFlush.length,
         backupsFlushedAcrossExit: afterFlush.length - beforeStop.length,
-        flushedBackup: afterFlush.find(entry => !beforeStop.some(previous => previous.name === entry.name)) ?? null,
+        flushedBackupSha: afterFlush.find(entry => !beforeStop.some(previous => previous.name === entry.name))?.sha256 ?? null,
+        backupCount: afterFlush.length,
+        backupShasSorted: afterFlush.map(entry => entry.sha256).sort(),
+        backupNamePatternOk: namePatternOk(afterFlush.map(entry => entry.name)),
         exit: stopResult,
         chatFile: null,
-        backups: afterFlush,
     });
 
     // restart: read back + retention (maxTotalBackups=2, throttle 1500) across group and character chats
@@ -309,10 +326,10 @@ async function runGroupLeg(kind, binary) {
         if (delayMs) await delay(delayMs);
         if (index === 4) {
             const response = await client.request('/api/chats/save', { method: 'POST', json: { avatar_url: AVATAR, file_name: CHAT, chat: groupArray({ messages: [`retention normal ${index}`] }), force: true } });
-            retentionBackups.push({ index, kind: 'character-chat', status: response.status, backups: await backupsState(backupsDir) });
+            retentionBackups.push({ index, kind: 'character-chat', status: response.status, backupCount: (await backupsState(backupsDir)).length });
         } else {
             const response = await save({ id: GROUP_ID, chat: groupArray({ messages: [`retention group ${index}`] }), force: true });
-            retentionBackups.push({ index, kind: 'group-chat', status: response.status, backups: await backupsState(backupsDir) });
+            retentionBackups.push({ index, kind: 'group-chat', status: response.status, backupCount: (await backupsState(backupsDir)).length });
         }
     }
     rows.push({ id: 'G10-retention-shared-quota', status: retentionBackups.map(entry => entry.status), bodyText: null, configEdits: [maxEdit, throttleEdit], restart: stopRetention, retention: retentionBackups, chatFile: null, backups: null });
