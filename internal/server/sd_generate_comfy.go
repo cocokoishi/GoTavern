@@ -329,24 +329,23 @@ func (runtime *accountRuntime) serveSDComfyGenerate(w http.ResponseWriter, reque
 	// The pinned close listener is registered BEFORE the first fetch, and it is the only consumer of
 	// `body.auth`: no fetch in this handler is signal-bound, so the AbortController is a no-op.
 	authorization, _ := sdBasicAuthHeader(sdBodyMember(body, "auth"))
+	// The pinned close listener interrupts only while the response has not ended AND no history item has
+	// been seen (`!response.writableEnded && !item`, stable-diffusion.js:568-576). The completion flag is
+	// the Go form of writableEnded -- without it the listener also fires when net/http cancels the request
+	// context after ServeHTTP returns, i.e. on every completed request.
 	var itemSeen atomic.Bool
-	finished := make(chan struct{})
-	defer close(finished)
-	go func() {
-		select {
-		case <-request.Context().Done():
-			if itemSeen.Load() {
-				return
-			}
-			interruptURL, joined := sdComfyJoin(base, "/interrupt")
-			if !joined {
-				return
-			}
-			_, _ = sdComfySend(context.Background(), http.MethodPost, interruptURL,
-				[]outbound.Header{{Name: "Authorization", Value: authorization}}, nil)
-		case <-finished:
+	watcher := watchPinnedSocketClose(request, func() {
+		if itemSeen.Load() {
+			return
 		}
-	}()
+		interruptURL, joined := sdComfyJoin(base, "/interrupt")
+		if !joined {
+			return
+		}
+		_, _ = sdComfySend(context.Background(), http.MethodPost, interruptURL,
+			[]outbound.Header{{Name: "Authorization", Value: authorization}}, nil)
+	})
+	defer watcher.end()
 
 	// `body: request.body.prompt`: a string is sent as given, an absent or null member sends nothing.
 	var payload []byte
@@ -550,25 +549,23 @@ func (runtime *accountRuntime) serveSDComfyRunPodGenerate(w http.ResponseWriter,
 
 	// `/cancel/${jobId}` is built by the pinned close listener, so before the create returns the job
 	// id is the JavaScript value `undefined` and its string form is what lands in the path.
+	// The pinned close listener cancels only while the response has not ended and no item has been seen
+	// (`!response.writableEnded && !item`, stable-diffusion.js:682-690). See the comfy site above for why
+	// the completion flag is required: net/http cancels the request context when ServeHTTP returns.
 	var jobID atomic.Value
 	jobID.Store("undefined")
 	var itemSeen atomic.Bool
-	finished := make(chan struct{})
-	defer close(finished)
-	go func() {
-		select {
-		case <-request.Context().Done():
-			if itemSeen.Load() {
-				return
-			}
-			cancelURL, joined := sdComfyJoin(base, "/cancel/"+jobID.Load().(string))
-			if !joined {
-				return
-			}
-			_, _ = sdComfySend(context.Background(), http.MethodPost, cancelURL, authorization, nil)
-		case <-finished:
+	watcher := watchPinnedSocketClose(request, func() {
+		if itemSeen.Load() {
+			return
 		}
-	}()
+		cancelURL, joined := sdComfyJoin(base, "/cancel/"+jobID.Load().(string))
+		if !joined {
+			return
+		}
+		_, _ = sdComfySend(context.Background(), http.MethodPost, cancelURL, authorization, nil)
+	})
+	defer watcher.end()
 
 	promptText, err := pinnedJSStringValue(sdBodyMember(body, "prompt"))
 	if err != nil {
