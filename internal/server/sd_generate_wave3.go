@@ -193,16 +193,21 @@ func (runtime *accountRuntime) serveSDA1111Generate(w http.ResponseWriter, reque
 			body = sdUnsetForgeModules(body)
 		}
 	}
-	// Cancellation leg: the pinned handler POSTs the interrupt as soon as the caller goes away. The
-	// interrupt uses a fresh context because the request's own context is already cancelled.
-	go func() {
-		<-request.Context().Done()
+	// Cancellation leg: the pinned handler POSTs the interrupt as soon as the caller goes away, but ONLY
+	// while the response has not ended (`!response.writableEnded`, stable-diffusion.js:316-321). A bare
+	// watcher on request.Context().Done() also fires when ServeHTTP RETURNS, because net/http cancels
+	// the request context then, so every normal completion used to send an extra interrupt that pinned
+	// never sends (the fixture records exactly two outbound requests). The watcher's completion flag is
+	// the Go form of writableEnded.
+	watcher := watchPinnedSocketClose(request, func() {
+		// The interrupt uses a fresh context because the request's own context is already cancelled.
 		_, _ = sdFetch(context.Background(), sdRequest{
 			Method:  http.MethodPost,
 			URL:     sdURLWithPath(parsed, "/sdapi/v1/interrupt"),
 			Headers: map[string]string{"authorization": authorization},
 		})
-	}()
+	})
+	defer watcher.end()
 	encoded, err := marshalOrderedNodeJSON(body)
 	if err != nil {
 		serveSDStatus(w, http.StatusInternalServerError)

@@ -55,24 +55,49 @@ func parseSeenMultipart(t *testing.T, label string, index int, contentType, body
 // TestSDA1111InterruptOnClientClose is a LABELLED IMPLEMENTATION TEST, not a pinned observation.
 //
 // The pinned `/api/sd/generate` registers a socket-close handler that POSTs `{url}/sdapi/v1/interrupt`
-// and aborts the generation. The probe peer cannot observe that: its scripted rules answer
-// immediately, so there is never an in-flight generation whose caller can go away. The pinned
-// scenario was therefore NOT recordable, and this test asserts the Go behaviour only — a cancelled
-// caller context produces the interrupt POST — without claiming pinned parity.
+// while the response has not ended and aborts the generation
+// (src/endpoints/stable-diffusion.js:316-321). The probe peer answers its rules immediately, so there is
+// never an in-flight generation whose caller can go away: the pinned scenario was therefore NOT
+// recordable, and this test asserts the GO BEHAVIOUR only -- a caller that goes away WHILE the provider
+// call is still in flight produces the interrupt POST -- without claiming pinned parity.
+//
+// ALPHA.20 CHANGE (reported, not silently weakened): this test used to cancel the request context
+// BEFORE the handler ran (`ctx, cancel := context.WithCancel(...); cancel(); request.WithContext(ctx)`).
+// That pre-cancelled state is not the pinned trigger: Node does not replay a socket 'close' event to a
+// listener registered after it fired, and a caller already gone cannot have a generation to interrupt.
+// It also made the assertion depend on goroutine scheduling (the watcher may see the completed response
+// instead of the disconnect). The scenario now drives the real trigger: the provider holds the
+// txt2img request open, the client is cancelled while it is in flight, and the interrupt must follow.
 func TestSDA1111InterruptOnClientClose(t *testing.T) {
 	var mu sync.Mutex
 	var seen []string
-	interrupted := make(chan struct{}, 1)
-	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	recorder := func(request *http.Request) {
 		mu.Lock()
-		seen = append(seen, r.Method+" "+r.URL.Path)
+		seen = append(seen, request.Method+" "+request.URL.Path)
 		mu.Unlock()
-		if r.URL.Path == "/sdapi/v1/interrupt" {
+	}
+	sawTxt2Img := make(chan struct{})
+	interrupted := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var txt2imgOnce sync.Once
+	peer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder(r)
+		_, _ = io.Copy(io.Discard, r.Body)
+		switch r.URL.Path {
+		case "/sdapi/v1/interrupt":
 			select {
 			case interrupted <- struct{}{}:
 			default:
 			}
 			w.WriteHeader(http.StatusOK)
+			return
+		case "/sdapi/v1/txt2img":
+			txt2imgOnce.Do(func() { close(sawTxt2Img) })
+			// Hold the provider call open until the caller is cancelled or the test releases it.
+			select {
+			case <-r.Context().Done():
+			case <-release:
+			}
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -82,20 +107,43 @@ func TestSDA1111InterruptOnClientClose(t *testing.T) {
 
 	dataRoot := t.TempDir()
 	handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
+	// A REAL server, because net/http is what turns a client disconnect into a request-context
+	// cancellation; httptest.NewRecorder would make the disconnect unobservable to the product.
+	front := httptest.NewServer(handler)
+	defer front.Close()
+
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	body := fmt.Sprintf(`{"url":%q,"prompt":"a tree"}`, peer.URL)
-	request := httptest.NewRequest(http.MethodPost, "/api/sd/generate", strings.NewReader(body)).WithContext(ctx)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, front.URL+"/api/sd/generate",
+		strings.NewReader(fmt.Sprintf(`{"url":%q,"prompt":"a tree"}`, peer.URL)))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
 	request.Header.Set("Content-Type", "application/json")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
+	go func() {
+		response, doErr := http.DefaultClient.Do(request)
+		if doErr == nil {
+			_, _ = io.Copy(io.Discard, response.Body)
+			_ = response.Body.Close()
+		}
+	}()
 
 	select {
-	case <-interrupted:
+	case <-sawTxt2Img:
 	case <-time.After(5 * time.Second):
 		mu.Lock()
 		defer mu.Unlock()
-		t.Fatalf("a cancelled caller did not produce POST {url}/sdapi/v1/interrupt; the peer saw %v", seen)
+		t.Fatalf("the provider never received the in-flight txt2img request; the peer saw %v", seen)
+	}
+	// The caller goes away while the generation is genuinely in flight.
+	cancel()
+	select {
+	case <-interrupted:
+		close(release)
+	case <-time.After(5 * time.Second):
+		mu.Lock()
+		defer mu.Unlock()
+		t.Fatalf("an in-flight caller disconnect did not produce POST {url}/sdapi/v1/interrupt; the peer saw %v", seen)
 	}
 }
 

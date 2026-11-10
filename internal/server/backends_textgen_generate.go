@@ -430,27 +430,25 @@ func (runtime *accountRuntime) serveBackendsTextCompletionGenerate(w http.Respon
 	pinnedApplyRequestOverrides(directories, apiServer, headers)
 
 	// Cancellation: the pinned fetch carries `signal: controller.signal`, and a client close on a
-	// koboldcpp request also POSTs `{trimV1(base)}/api/extra/abort` with the additional headers. The
-	// outbound calls below run under the request context for exactly that reason.
-	finished := make(chan struct{})
-	defer close(finished)
+	// koboldcpp request also POSTs `{trimV1(base)}/api/extra/abort` -- but only while the response has not
+	// ended (`!response.writableEnded`, text-completions.js:288-296). The outbound calls below run under
+	// the request context, so a real disconnect tears the upstream fetch down; the watcher's completion
+	// flag keeps the abort POST from firing when net/http cancels the context on handler return.
+	var watcher *pinnedSocketCloseWatcher
 	if apiType == "koboldcpp" {
-		go func() {
-			select {
-			case <-request.Context().Done():
-				abortHeaders, headerErr := backendsAdditionalHeaders(body, directories)
-				if headerErr != nil {
-					return
-				}
-				// text-completions.js:80-89: `abortKoboldCppRequest(request, trimV1(baseUrl))` runs
-				// setAdditionalHeaders against the TRIMMED base, so that is the host the override matches.
-				pinnedApplyRequestOverrides(directories, trimmedBase, abortHeaders)
-				// A detached context on purpose: the caller is already gone, and the pinned abort POST is a fresh fetch.
-				_, _ = searchFetch(context.Background(), searchRequest{Method: http.MethodPost, URL: trimmedBase + "/api/extra/abort", Headers: abortHeaders})
-			case <-finished:
+		watcher = watchPinnedSocketClose(request, func() {
+			abortHeaders, headerErr := backendsAdditionalHeaders(body, directories)
+			if headerErr != nil {
+				return
 			}
-		}()
+			// text-completions.js:80-89: `abortKoboldCppRequest(request, trimV1(baseUrl))` runs
+			// setAdditionalHeaders against the TRIMMED base, so that is the host the override matches.
+			pinnedApplyRequestOverrides(directories, trimmedBase, abortHeaders)
+			// A detached context on purpose: the caller is already gone, and the pinned abort POST is a fresh fetch.
+			_, _ = searchFetch(context.Background(), searchRequest{Method: http.MethodPost, URL: trimmedBase + "/api/extra/abort", Headers: abortHeaders})
+		})
 	}
+	defer watcher.end()
 
 	// Per-type body rewriting, in the pinned order; `args.body` is re-serialized after each branch.
 	payload := body
