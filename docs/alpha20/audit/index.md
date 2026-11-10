@@ -11,6 +11,15 @@ live in working notes, never here. Severity: Critical / High / Medium / Low.
 | A20-C | Low | outbound: provider transport followed 19 redirects where node-fetch follows 20 | **FIXED** (`60ed139`, source-audit lane) | [A20-C](A20-C.md) |
 | A20-D | High | chats: `chat_metadata.integrity` not enforced on save | **FIXED** (`fb24983`, Lead) | [A20-D](A20-D-chat-integrity.md) |
 | A20-E | High | chats: group save never scheduled the pinned backup | **FIXED** (`fb24983`, Lead) | [A20-E](A20-E-group-save-backup.md) |
+| A20-F | Medium | characters: the card base64 decoder rejected payloads pinned's lenient `Buffer.from(text,'base64')` reads (URL-safe `-`/`_`, interior junk, `=` handling, lone leftover char) | **FIXED** (`138d177`, source-audit lane) | [A20-F](A20-F-card-base64.md) |
+
+## Integration notes
+
+- The crash-atomicity scenario `chat-metadata-mutation` (`tests/e2e/chat_crash_test.go`) deliberately replaced
+  `chat_metadata.integrity`, which the new pinned guard correctly refuses without `force`; the scenario now
+  sends `force:true` (the pinned path a client uses to overwrite a changed chat) so it still tests the same
+  crash-atomicity property. This is a REPORTED test change, not a weakened guard; the guard keeps its own
+  tests (`TestA20ChatIntegrity*`). Found by the first main CI run at `aa44519` (crash-gate red).
 
 ## Candidate observations not promoted to findings
 

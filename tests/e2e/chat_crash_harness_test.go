@@ -421,7 +421,7 @@ func chatPayload(t *testing.T, messages []map[string]any) []byte {
 	return []byte(strings.Join(lines, "\n"))
 }
 
-func saveBody(t *testing.T, fileName string, messages []map[string]any) string {
+func saveBody(t *testing.T, fileName string, messages []map[string]any, force ...bool) string {
 	t.Helper()
 	encoded, err := json.Marshal(map[string]any{
 		"avatar_url": crashAvatar + ".png",

@@ -58,6 +58,11 @@ type saveCase struct {
 	oldMessages []map[string]any
 	newMessages []map[string]any
 	iterations  int
+	// force is sent as body.force. Pinned's trySaveChat refuses an overwrite whose
+	// chat_metadata.integrity does not match the stored file unless force is truthy
+	// (src/endpoints/chats.js:532-543, alpha.20 audit A20-D), so a scenario that
+	// deliberately changes integrity must take the forced path pinned uses for it.
+	force bool
 }
 
 func saveCases() []saveCase {
@@ -148,6 +153,11 @@ func saveCases() []saveCase {
 				{"name": crashAvatar, "is_user": false, "mes": crashText("body")},
 			},
 			iterations: 10,
+			// The scenario deliberately replaces chat_metadata.integrity, so it takes
+			// the FORCED overwrite path: pinned answers 400 {"error":"integrity"} without
+			// force (src/endpoints/chats.js:535-540). The crash-atomicity question is
+			// unchanged; this keeps the case testing the product's pinned path.
+			force: true,
 		},
 	}
 }
@@ -173,7 +183,7 @@ func TestChatWriteCrashAtomicityRandomised(t *testing.T) {
 
 			// Control: one real success on this tree captures the product's own NEW bytes.
 			client := tree.boot(t, "", false)
-			status, response, err := client.post("/api/chats/save", saveBody(t, scenario.fileName, scenario.newMessages))
+			status, response, err := client.post("/api/chats/save", saveBody(t, scenario.fileName, scenario.newMessages, scenario.force))
 			if err != nil || status != http.StatusOK {
 				t.Fatalf("control save = %d (%v), want 200: %s", status, err, response)
 			}
@@ -199,7 +209,7 @@ func TestChatWriteCrashAtomicityRandomised(t *testing.T) {
 					existing = scenario.fileName + ".jsonl"
 					oldSize = len(body)
 				}
-				crashed := tree.killDuringSave(t, client, iteration, scenario.fileName, scenario.newMessages, existing, oldSize)
+				crashed := tree.killDuringSave(t, client, iteration, scenario.fileName, scenario.newMessages, existing, oldSize, scenario.force)
 				if crashed {
 					midWrite++
 				} else {
@@ -219,7 +229,7 @@ func TestChatWriteCrashAtomicityRandomised(t *testing.T) {
 // killDuringSave sends one save, waits until the write is observable, jitters, and hard-kills. It reports
 // whether the kill happened (false: the request completed first and the caller asserts the complete new
 // state).
-func (tree *crashTree) killDuringSave(t *testing.T, client *crashClient, iteration int, fileName string, messages []map[string]any, existingFile string, existingSize int) bool {
+func (tree *crashTree) killDuringSave(t *testing.T, client *crashClient, iteration int, fileName string, messages []map[string]any, existingFile string, existingSize int, force bool) bool {
 	t.Helper()
 	body := saveBody(t, fileName, messages)
 	done := make(chan struct{})
