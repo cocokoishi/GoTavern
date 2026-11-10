@@ -138,10 +138,10 @@ func localeCompareLess(left, right string) bool {
 // without JSON quoting, a boolean serializes as JSON, and null becomes an empty
 // body without a Content-Type. res.send(number) is a status-code form and is
 // handled by the caller.
-func respondWorldInfoSend(w http.ResponseWriter, value orderedNodeJSON) {
+func respondWorldInfoSend(w http.ResponseWriter, value orderedNodeJSON, sizeHint int) {
 	switch value.kind {
 	case 'o', 'a':
-		respondOrderedNodeJSON(w, http.StatusOK, value)
+		respondOrderedNodeJSONHint(w, http.StatusOK, value, sizeHint)
 	case 's':
 		respondText(w, http.StatusOK, "text/html; charset=utf-8", value.scalar.(string))
 	case 'b':
@@ -182,28 +182,35 @@ func serveWorldInfoNumberStatus(w http.ResponseWriter, status float64) {
 // object (or null when allowDummy is unset), and every other failure is thrown
 // to Express: the second result is false. It is separate from the characters
 // domain's readWorldInfoFile, which mirrors the pinned allowDummy=false call.
-func readWorldInfoRouteFile(directories startup.UserDirectories, name orderedNodeJSON, allowDummy bool) (orderedNodeJSON, bool) {
+//
+// The size result is the on-disk byte length of the parsed document (0 for the
+// dummy/null answers). It is a SERIALIZATION HINT only: the world-info response
+// is the same JSON.stringify of the parsed value, so the file length is a close
+// upper estimate of the body and lets alpha.20's single-buffer serializer
+// pre-size its buffer instead of growing to ~4x the body. It can never change a
+// byte of the response (the byte-identity test proves that with a wrong hint).
+func readWorldInfoRouteFile(directories startup.UserDirectories, name orderedNodeJSON, allowDummy bool) (orderedNodeJSON, int, bool) {
 	if !jsTruthy(name) {
-		return worldInfoDummyOrNull(allowDummy), true
+		return worldInfoDummyOrNull(allowDummy), 0, true
 	}
 	filename, valid := pinnedWorldInfoFilename(name)
 	if !valid {
-		return orderedNodeJSON{}, false
+		return orderedNodeJSON{}, 0, false
 	}
 	target := filepath.Join(directories["worlds"], filename)
 	if _, err := os.Stat(target); err != nil {
 		// Pinned readWorldInfoFile logs the missing file and returns the dummy.
-		return worldInfoDummyOrNull(allowDummy), true
+		return worldInfoDummyOrNull(allowDummy), 0, true
 	}
 	contents, err := os.ReadFile(target)
 	if err != nil {
-		return orderedNodeJSON{}, false
+		return orderedNodeJSON{}, 0, false
 	}
 	parsed, err := decodeOrderedNodeJSON(contents)
 	if err != nil {
-		return orderedNodeJSON{}, false
+		return orderedNodeJSON{}, 0, false
 	}
-	return parsed, true
+	return parsed, len(contents), true
 }
 
 func worldInfoDummyOrNull(allowDummy bool) orderedNodeJSON {
@@ -333,13 +340,13 @@ func (runtime *accountRuntime) serveWorldInfoGet(w http.ResponseWriter, request 
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	worldInfo, ok := readWorldInfoRouteFile(directories, name, true)
+	worldInfo, sizeHint, ok := readWorldInfoRouteFile(directories, name, true)
 	if !ok {
 		// JSON.parse, the template literal's ToString or readFileSync threw.
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondWorldInfoSend(w, worldInfo)
+	respondWorldInfoSend(w, worldInfo, sizeHint)
 }
 
 func (runtime *accountRuntime) serveWorldInfoDelete(w http.ResponseWriter, request *http.Request) {

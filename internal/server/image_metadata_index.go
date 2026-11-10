@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -357,7 +358,14 @@ func (value orderedNodeJSON) truthy() bool {
 }
 
 func respondOrderedNodeJSON(w http.ResponseWriter, status int, value orderedNodeJSON) {
-	body, err := marshalOrderedNodeJSON(value)
+	respondOrderedNodeJSONHint(w, status, value, 0)
+}
+
+// respondOrderedNodeJSONHint is respondOrderedNodeJSON with an optional serialized-size hint. The hint only
+// pre-sizes the single output buffer; it can never change the bytes (the byte-identity test proves that with a
+// deliberately wrong hint).
+func respondOrderedNodeJSONHint(w http.ResponseWriter, status int, value orderedNodeJSON, hint int) {
+	body, err := marshalOrderedNodeJSONHint(value, hint)
 	if err != nil {
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
@@ -370,53 +378,212 @@ func respondOrderedNodeJSON(w http.ResponseWriter, status int, value orderedNode
 }
 
 func marshalOrderedNodeJSON(value orderedNodeJSON) ([]byte, error) {
-	var body bytes.Buffer
+	return marshalOrderedNodeJSONHint(value, 0)
+}
+
+// marshalOrderedNodeJSONHint is the single-buffer ordered-JSON serializer. alpha.20 replaced the recursive
+// per-object `bytes.Buffer` construction with an append-only writer: the old shape allocated a fresh buffer for
+// EVERY nested object and array and a fresh []byte for every member key and string, so a 4 MiB world book paid
+// ~35 MB of allocations per marshal (measured: BenchmarkA20MarshalWorld4MB). The bytes produced are identical;
+// the hint only pre-sizes the ONE buffer, and a wrong hint changes the number of grows, never the content (the
+// byte-identity test replays the frozen pre-change golden with hints 0, 1, exact+7 and 1<<20).
+func marshalOrderedNodeJSONHint(value orderedNodeJSON, hint int) ([]byte, error) {
+	capacity := hint
+	if capacity < 0 {
+		capacity = 0
+	}
+	if capacity > 0 {
+		// The source length is a close estimate, not the exact serialized length (a pretty-printed source file
+		// shrinks, an escaped one grows). A small slack keeps a near-exact hint from triggering one needless
+		// doubling at the end; it only reserves capacity.
+		capacity += capacity/8 + 64
+	}
+	writer := &orderedJSONWriter{data: make([]byte, 0, capacity)}
+	if err := writer.writeOrderedNode(value); err != nil {
+		return nil, err
+	}
+	return writer.data, nil
+}
+
+// orderedJSONWriter appends the ordered-JSON serialization into ONE buffer. It exists because Go's slice
+// append grows large slices by ~1.25x, so the old append(dst, ...) prototype still allocated about 3x the final
+// body for a 4 MiB world book (measured: 24.5 MB/op); this writer doubles instead, and a caller that knows the
+// source size (the world-info route passes the file length) pre-sizes it so the total is ~1x the body.
+type orderedJSONWriter struct {
+	data []byte
+}
+
+func (writer *orderedJSONWriter) reserve(extra int) {
+	if extra <= cap(writer.data)-len(writer.data) {
+		return
+	}
+	needed := len(writer.data) + extra
+	capacity := cap(writer.data)
+	if capacity < 64 {
+		capacity = 64
+	}
+	for capacity < needed {
+		capacity *= 2
+	}
+	next := make([]byte, len(writer.data), capacity)
+	copy(next, writer.data)
+	writer.data = next
+}
+
+func (writer *orderedJSONWriter) writeByte(character byte) {
+	writer.reserve(1)
+	writer.data = append(writer.data, character)
+}
+
+func (writer *orderedJSONWriter) writeString(value string) {
+	writer.reserve(len(value))
+	writer.data = append(writer.data, value...)
+}
+
+// writeEscapedString reserves only the PLAIN encoded size (the two quotes plus the string bytes). The pinned
+// escaper can expand control bytes to six bytes each, but the ordered-JSON routes carry prose and identifiers
+// where expansion is rare; reserving the 6x worst case on every string would over-reserve near the end of a
+// pre-sized buffer and trigger a needless doubling (measured: the hinted chat arm regressed 2.99 MB -> 3.89 MB
+// per op when it did). The escaper's own append grows correctly if expansion happens, so this is a sizing choice
+// and never a correctness one.
+func (writer *orderedJSONWriter) writeEscapedString(value string) {
+	writer.reserve(len(value) + 2)
+	writer.data = appendCharacterJSONString(writer.data, value)
+}
+
+func (writer *orderedJSONWriter) writeNumber(value float64) {
+	writer.reserve(32)
+	writer.data = appendECMAScriptNumber(writer.data, value)
+}
+
+func (writer *orderedJSONWriter) writeOrderedNode(value orderedNodeJSON) error {
 	switch value.kind {
 	case 'o':
-		body.WriteByte('{')
+		writer.writeByte('{')
 		entries, _ := value.entries()
 		for index, entry := range entries {
 			if index > 0 {
-				body.WriteByte(',')
+				writer.writeByte(',')
 			}
-			keyBytes, err := marshalNodeJSONString(entry.key)
-			if err != nil {
-				return nil, err
+			writer.writeEscapedString(entry.key)
+			writer.writeByte(':')
+			if err := writer.writeOrderedNode(entry.value); err != nil {
+				return err
 			}
-			body.Write(keyBytes)
-			body.WriteByte(':')
-			valueBytes, err := marshalOrderedNodeJSON(entry.value)
-			if err != nil {
-				return nil, err
-			}
-			body.Write(valueBytes)
 		}
-		body.WriteByte('}')
+		writer.writeByte('}')
+		return nil
 	case 'a':
-		body.WriteByte('[')
+		writer.writeByte('[')
 		for index, item := range value.array {
 			if index > 0 {
-				body.WriteByte(',')
+				writer.writeByte(',')
 			}
-			itemBytes, err := marshalOrderedNodeJSON(item)
-			if err != nil {
-				return nil, err
+			if err := writer.writeOrderedNode(item); err != nil {
+				return err
 			}
-			body.Write(itemBytes)
 		}
-		body.WriteByte(']')
+		writer.writeByte(']')
+		return nil
 	case 's':
-		return marshalNodeJSONString(value.scalar.(string))
+		writer.writeEscapedString(value.scalar.(string))
+		return nil
 	case 'h':
+		// A lone UTF-16 surrogate is emitted as the JSON escape Node's JSON.stringify produces.
 		unit := value.scalar.(uint16)
 		hex := strconv.FormatUint(uint64(unit), 16)
-		return []byte(`"\u` + strings.Repeat("0", 4-len(hex)) + hex + `"`), nil
+		writer.reserve(8)
+		writer.data = append(writer.data, '"', '\\', 'u')
+		for padding := len(hex); padding < 4; padding++ {
+			writer.data = append(writer.data, '0')
+		}
+		writer.data = append(writer.data, hex...)
+		writer.data = append(writer.data, '"')
+		return nil
 	case 'v':
-		return marshalECMAScriptNumber(value.scalar.(float64))
+		writer.writeNumber(value.scalar.(float64))
+		return nil
 	default:
-		return marshalNodeJSON(value.scalar)
+		encoded, err := marshalNodeJSON(value.scalar)
+		if err != nil {
+			return err
+		}
+		writer.writeBytes(encoded)
+		return nil
 	}
-	return body.Bytes(), nil
+}
+
+func (writer *orderedJSONWriter) writeBytes(value []byte) {
+	writer.reserve(len(value))
+	writer.data = append(writer.data, value...)
+}
+
+// appendCharacterJSONString is the append-based form of the pinned JSON string encoding in
+// writeCharacterJSONString. It exists so the ordered-JSON serializer does not allocate one temporary []byte per
+// member key and string. Both encoders must emit identical bytes, and the byte-identity test
+// (a20_marshal_byte_identity_test.go) replays the frozen pre-change golden over controls, U+2028/U+2029,
+// invalid UTF-8, lone surrogates and astral runes for both.
+func appendCharacterJSONString(dst []byte, value string) []byte {
+	const hexDigits = "0123456789abcdef"
+	dst = append(dst, '"')
+	start := 0
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character < utf8.RuneSelf {
+			if character >= 0x20 && character != '"' && character != '\\' {
+				continue
+			}
+			dst = append(dst, value[start:index]...)
+			switch character {
+			case '"':
+				dst = append(dst, '\\', '"')
+			case '\\':
+				dst = append(dst, '\\', '\\')
+			case '\b':
+				dst = append(dst, '\\', 'b')
+			case '\t':
+				dst = append(dst, '\\', 't')
+			case '\n':
+				dst = append(dst, '\\', 'n')
+			case '\f':
+				dst = append(dst, '\\', 'f')
+			case '\r':
+				dst = append(dst, '\\', 'r')
+			default:
+				dst = append(dst, '\\', 'u', '0', '0', hexDigits[character>>4], hexDigits[character&0xF])
+			}
+			start = index + 1
+			continue
+		}
+		runeValue, size := utf8.DecodeRuneInString(value[index:])
+		if runeValue == utf8.RuneError && size == 1 {
+			// encoding/json replaces each invalid byte with U+FFFD and keeps scanning at the next byte.
+			dst = append(dst, value[start:index]...)
+			dst = append(dst, "\uFFFD"...)
+			start = index + 1
+			continue
+		}
+		index += size - 1
+	}
+	dst = append(dst, value[start:]...)
+	return append(dst, '"')
+}
+
+// appendECMAScriptNumber appends the same text marshalECMAScriptNumber returns, without the temporary []byte on
+// the common (non-scientific) path. The rare scientific branch keeps the shared formatter and copies its bytes.
+func appendECMAScriptNumber(dst []byte, value float64) []byte {
+	if value == 0 {
+		return append(dst, '0')
+	}
+	absolute := math.Abs(value)
+	if absolute >= 1e-6 && absolute < 1e21 {
+		return strconv.AppendFloat(dst, value, 'f', -1, 64)
+	}
+	encoded, err := marshalECMAScriptNumber(value)
+	if err != nil {
+		return append(dst, "null"...)
+	}
+	return append(dst, encoded...)
 }
 
 func (value orderedNodeJSON) javascriptString() (string, error) {
@@ -477,10 +644,7 @@ func (value orderedNodeJSON) javascriptString() (string, error) {
 // a19_perf_pins_test.go (a19ReferenceMarshalNodeJSONStringEncoder) and characters_scale_optimization_test.go
 // was updated to use it, so the comparison still has teeth.
 func marshalNodeJSONString(value string) ([]byte, error) {
-	var body bytes.Buffer
-	body.Grow(len(value) + 2)
-	writeCharacterJSONString(&body, value)
-	return body.Bytes(), nil
+	return appendCharacterJSONString(nil, value), nil
 }
 
 func marshalECMAScriptNumber(value float64) ([]byte, error) {
