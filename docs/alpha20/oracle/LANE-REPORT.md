@@ -1,6 +1,6 @@
 # Alpha.20 oracle/corpus lane — post-candidate evidence report
 
-Candidate under test: **`496e5a97a12711d918e902f31e18dde6a84fc80d`** (short `496e5a9`). The 14-gate wave runs at
+Candidate under test: **`496e5a9`** (short `496e5a9`). The 14-gate wave runs at
 that SHA. This report is docs-only; it documents what the lane measured and which commits carry test/corpus
 tooling versus evidence documents, so the lead can integrate evidence without changing the candidate tree.
 

@@ -1,5 +1,14 @@
 # The evidence ledger: one row per user question, and the run that proves it
 
+**alpha.20 note (2026-11-09, `v0.1.0-alpha.20` published).** No row below is upgraded by alpha.20: the
+baseline, contract and per-question states are unchanged, and `GOAL.md` §14 stays NOT MET (the corpora are
+agent-authored). alpha.20 is a source-audit and performance round: nine source-audit fixes with RED→GREEN
+records, the pinned `chat_metadata.integrity` guard and the group-save auto-backup closed, a
+single-buffer ordered-JSON serializer with byte-identity proof (world 4 MiB B/op −47.8%, chats 2,000 msgs
+−52.6%; `/api/chats/get` p50 −23.5% in a same-host ABBA), a 60-minute soak with an `UNPROVEN` leak verdict,
+a 67% shorter README first screen and a rebuilt honest figure. Evidence:
+[`alpha20/audit/index.md`](alpha20/audit/index.md), [`alpha20/same-sha-evidence.md`](alpha20/same-sha-evidence.md),
+[`alpha20/release-evidence.md`](alpha20/release-evidence.md).
 **alpha.19 note (2026-11-09, `v0.1.0-alpha.19` published).** No row below is upgraded by alpha.19: the
 baseline, contract and per-question states are unchanged, and `GOAL.md` §14 stays NOT MET (the UI-originated
 corpus is agent-authored, not a real user's years-old directory). alpha.19 adds a fourteenth required release

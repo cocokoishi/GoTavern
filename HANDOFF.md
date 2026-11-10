@@ -10,7 +10,30 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-09: `v0.1.0-alpha.19` — THE REAL-INTERACTION ORACLE RELEASE
+## Latest checkpoint - 2026-11-10: `v0.1.0-alpha.20` — THE SOURCE-AUDIT AND PERFORMANCE RELEASE
+
+`v0.1.0-alpha.20` is **PUBLISHED**: the annotated tag `v0.1.0-alpha.20` (object `f25fbb6`) peels to the gated
+candidate `260b790`, and `GoTavern Release` run **42788799794** created
+https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.20 at 2026-11-10T09:15:50Z with `draft=false`,
+`prerelease=false`, the six canonical archives plus `checksums.txt`, and the same-SHA 14-gate table in its body.
+The fail-closed verifier passed **14/14** at that commit. This is a source-audit and performance round: nine
+defects found by reading the real production code were fixed with RED→GREEN reproducers (A20-A…I), the pinned
+`chat_metadata.integrity` guard and the group-save auto-backup gaps recorded since alpha.18 were closed, the
+ordered-JSON hot path was rewritten to one append buffer with byte-identity proof (world 4 MiB −47.8% B/op,
+chats 2,000 messages −52.6% B/op; `/api/chats/get` p50 −23.5% in a same-host ABBA), README's first screen
+shrank 67% with a rebuilt honest figure, and a 60-minute soak on the candidate reported 0 errors with an
+explicit `UNPROVEN` leak verdict. Evidence: [`docs/alpha20/audit/index.md`](docs/alpha20/audit/index.md),
+[`docs/alpha20/same-sha-evidence.md`](docs/alpha20/same-sha-evidence.md),
+[`docs/alpha20/release-evidence.md`](docs/alpha20/release-evidence.md), and the published body. The SillyTavern
+`1.19.0` baseline (`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged and `GOAL.md` §14 remains
+**NOT MET** / `PRIVATE_NOT_RUN` (agent-authored corpora, not a real user's years-old directory). Status at this
+checkpoint is **PUBLISHED, after a PASS**; the honest unproven list is in the release notes and
+`docs/alpha20/release-evidence.md` (provider-wire fault injection, disk-full, >8 users, medium-corpus five-layer
+rerun, darwin/arm64 and windows/arm64 runtime, RSS-only soak).
+
+---
+
+## Checkpoint history - 2026-11-09: `v0.1.0-alpha.19` — THE REAL-INTERACTION ORACLE RELEASE
 
 `v0.1.0-alpha.19` is **PUBLISHED**: the annotated tag `v0.1.0-alpha.19` (object `50d0c3aa`) peels to the gated
 candidate `bbc5615`, and `GoTavern Release` run **42679494601** created
@@ -40,7 +63,7 @@ same-SHA 13-gate table appended to its body. The
 SillyTavern `1.19.0` baseline (`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged, the compatibility
 contract is unchanged, and `GOAL.md` §14 remains **NOT MET** (no real user directory on this host;
 `PRIVATE_NOT_RUN`). Status at this checkpoint is **TAGGING, after a PASS**: the frozen candidate
-`a41772152a76cd3c42c52b63f2a377e2963de6fd` carries the thirteen-gate wave `PASS 13/13` from the official
+`a417721` carries the thirteen-gate wave `PASS 13/13` from the official
 verifier, a successful pre-tag rehearsal and a passed benchmark comparison. The tag is created at that
 candidate and the publish facts are appended below after the release.
 
@@ -334,7 +357,7 @@ planted defect that made a NAMED assertion go red, and the eight-lane audit is r
 [`docs/audit-v0.1.0-alpha.15.md`](docs/audit-v0.1.0-alpha.15.md) (80 rows; seven audit areas plus the release
 itself). Baseline unchanged: SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
-**Code-complete commit: `f1396cec6a26719501801846577f26d0cca0156b`.** The documentation pass is the commit
+**Code-complete commit: `f1396ce`.** The documentation pass is the commit
 after it; the same-SHA required-gate table for the tag is appended to the published release body by the publish
 job (`scripts/assemble-release-body.mjs`), because a note committed in the tag cannot cite runs of the tag.
 
@@ -408,7 +431,7 @@ The table above is the verifier's output; the per-run detail and the evidence-ar
 
 ### Release identity
 
-- **tag** `v0.1.0-alpha.15` (annotated object `8e9e2dcf...`) points at commit **`95638da72cdb85d58f73adff244040dc6b8669f3`**; `scripts/classify-version-tag.sh` classifies it **stable**; the tag was not moved. Release: https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.15 -- `draft=false`, `prerelease=false`, `isLatest=true`, published `2026-11-05T21:46:29Z`, **7 assets** (six archives + `checksums.txt`); all six digests were re-verified by downloading them back from the release and comparing against the release's own `checksums.txt`.
+- **tag** `v0.1.0-alpha.15` (annotated object `8e9e2dcf...`) points at commit **`95638da`**; `scripts/classify-version-tag.sh` classifies it **stable**; the tag was not moved. Release: https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.15 -- `draft=false`, `prerelease=false`, `isLatest=true`, published `2026-11-05T21:46:29Z`, **7 assets** (six archives + `checksums.txt`); all six digests were re-verified by downloading them back from the release and comparing against the release's own `checksums.txt`.
 - **asset digests** (sha256): `gotavern-linux-amd64.tar.gz` `7170ef86...`, `gotavern-linux-arm64.tar.gz` `1d9723e4...`, `gotavern-darwin-amd64.tar.gz` `933cb228...`, `gotavern-darwin-arm64.tar.gz` `5733b031...`, `gotavern-windows-amd64.zip` `d6050b00...`, `gotavern-windows-arm64.zip` `a9651215...`.
 - **the published binary was executed locally**: the `windows-arm64` archive unpacked and booted on a clean tree -- `gotavern version` printed `GoTavern v0.1.0-alpha.15` / baseline `1.19.0 (06bde939...)`, `/version` answered 200 with `pkgVersion 1.19.0`, `GET /` answered 200 (734,837 B), and the boot created `config.yaml` and `data/` inside the install root.
 - **container**: `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.15` and `:latest` are the SAME image version `sha256:28fd03f49269f8df6a169b106baff8d740dd90ee49c5302c4292c1b4737145e8` (the stable channel moves `latest`), alpha.14's digest unchanged; `docker.yml` tag run `42113162309` built, verified, pushed and re-verified the PULLED reference.
@@ -458,7 +481,7 @@ compatible" or "safe"; the release body's Known limitations says this in the sam
 | fact | value |
 |---|---|
 | GitHub Release | `RE_kwDOVPI5684Z3Ndq` (`v0.1.0-alpha.14`, prerelease=**false**, draft=false, latest=true, published 2026-11-04T12:40:33Z) |
-| tag object -> commit | `8576c95` -> `c01d245e1b9ea0689efd84339707a219740df65a` |
+| tag object -> commit | `8576c95` -> `c01d245` |
 | release workflow run | `41831035942` success -- six build jobs, four cross-platform execution jobs (`execute-darwin-amd64`, `execute-linux-arm64`, `execute-darwin-arm64`, plus windows-amd64 EXECUTED + LAUNCHER-TESTED and the recorded windows-arm64 not-executed boundary), `prepublish-qualification`, `publish`, `post-release-facts` (facts commit `ccd42b6`) |
 | assets | 7 files, 366,255,656 bytes (`checksums.txt` 564 B + six canonical archives 366,255,092 B) |
 | release body | curated note `docs/release-notes-v0.1.0-alpha.14.md` (validated by `scripts/verify-release-notes.mjs`) **plus the same-SHA required-gate table appended by the publish job** -- 8,578 bytes with the table naming all eleven runs |
@@ -992,7 +1015,7 @@ BUILD-INFO, release body, image tag) differs.
 | field | value |
 |---|---|
 | tag | `v0.1.0-alpha.10` (annotated; tag object `4dc3760`, peels to `ffa6e54`) |
-| commit | `ffa6e54` (`ffa6e5494fdcd1061f8da80a8f5a561c94bac26e`) |
+| commit | `ffa6e54` (`ffa6e54`) |
 | GitHub Release id | `430293538` |
 | draft / prerelease | false / **true** |
 | `releases/latest` | still `v0.1.0-alpha.9` (asserted through the API after publish, not inferred) |
@@ -1175,7 +1198,7 @@ gets Beta 1 only by asking for it (`--version v0.1.0-beta.1` / `-Version v0.1.0-
 | field | value |
 |---|---|
 | tag | `v0.1.0-beta.1` (annotated) |
-| commit | `ffa6e54` (`ffa6e5494fdcd1061f8da80a8f5a561c94bac26e`) |
+| commit | `ffa6e54` (`ffa6e54`) |
 | GitHub Release id | `430140428` |
 | draft / prerelease | false / **true** |
 | `releases/latest` | still `v0.1.0-alpha.9` (asserted by API after publish, not inferred) |
@@ -1510,7 +1533,7 @@ embedding source answers an unimplemented status.
 | Field | Value |
 |---|---|
 | **Release** | `v0.1.0-alpha.8`, published as a **prerelease** (`isPrerelease=true`, `draft=false`) |
-| **Release SHA** | `dd6f2ac5a13d7f2683125afcf96f6de32dd0e56d` -- the commit the annotated tag names |
+| **Release SHA** | `dd6f2ac` -- the commit the annotated tag names |
 | **Assets** | six canonical archives plus `checksums.txt`, all seven published |
 | **`main` after the release** | `4746af8` (the post-tag facts regeneration, which the tag made necessary) |
 | **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
@@ -1607,7 +1630,7 @@ owner and force-pushing nothing.
 | Field | Value |
 |---|---|
 | **Release** | `v0.1.0-alpha.7`, published as a **prerelease** (`isPrerelease=true`) |
-| **Release SHA** | `b114ab113d3954bef1e47651d2695f67e2708a2e` -- the commit the tag names |
+| **Release SHA** | `b114ab1` -- the commit the tag names |
 | **Assets** | six canonical archives plus `checksums.txt`, all seven published |
 | **Release notes** | applied to the published release: 6,555 characters |
 | **`main` after the release** | `d0913e1` (the post-tag facts regeneration, which the tag made necessary) |
@@ -1647,7 +1670,7 @@ Both were the SAME shape and neither was a lane defect: a rebase resolved onto a
 kept the older side of a two-sided invariant.
 
 1. **The pin gate refused a correct document.** `lane/privacy-merge` at `f82451e` had deleted the
-   `declaredOtherPins` entry for `0dddeac181dad9681d9c9eb720a1be66f1126573` (the alpha.6 release SHA) while
+   `declaredOtherPins` entry for `0dddeac` (the alpha.6 release SHA) while
    `HANDOFF.md` still named it, so `TestPinnedCommitStringsMatchThePin` failed -- `GoTavern Lane CI`
    **40625064857 (failure)**. Repaired as `26f9019` by restoring the hunk from main verbatim; the
    invariant was asserted on BOTH ends (allowlist 0 to 1, HANDOFF 1 to 1) and the file is now
@@ -1700,7 +1723,7 @@ These are the limits the release states to users. None blocks the tag.
 | Field | Value |
 |---|---|
 | **Release** | `v0.1.0-alpha.6`, published as a **prerelease** (`isPrerelease=true`) |
-| **Release SHA** | `0dddeac181dad9681d9c9eb720a1be66f1126573` -- the commit the tag names |
+| **Release SHA** | `0dddeac` -- the commit the tag names |
 | **Assets** | six canonical archives plus `checksums.txt`, all seven published and listed in the checksums |
 | **`main` after the release** | `52d0a19` (the benchmark restyle merged after the tag; docs and a generated SVG only) |
 | **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |

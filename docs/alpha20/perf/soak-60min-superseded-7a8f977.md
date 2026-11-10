@@ -1,6 +1,6 @@
 > **SUPERSEDED — DO NOT CITE FOR THE RELEASE.** This 60-minute soak ran on the subject built from
-> `7a8f9776455dca7ef9eb42f6337e4e2846ddf828` (Go source then proven identical to `fc30e38`). After that run, the
-> final candidate changed to **`260b7900d4bd2385a321ef859c7f998b8e28e02c`**: Linux CI at `fc30e38` found two real
+> `7a8f977` (Go source then proven identical to `fc30e38`). After that run, the
+> final candidate changed to **`260b790`**: Linux CI at `fc30e38` found two real
 > regressions (HEAD `/version` wrote a body where pinned writes none; the SD in-flight-disconnect interrupt could
 > lose a race against the handler returning on an already-cancelled context), and both fixes changed Go code. The
 > required soak on `260b790` is the separate, current record in `soak-60min.md`; this file is kept only as a
@@ -13,8 +13,8 @@
 # alpha.20 60-minute mixed-load soak — frozen candidate `fc30e38`
 
 Status: **COMPLETE, Layer A (Windows arm64 development host). Not a CI verdict.** This is post-candidate
-evidence for the frozen candidate `fc30e38e667dc2373a672da0582bbf51665b7974`; the subject was built from
-`7a8f9776455dca7ef9eb42f6337e4e2846ddf828`, whose Go source and VCS-free binary are **provably identical** to
+evidence for the frozen candidate `fc30e38`; the subject was built from
+`7a8f977`, whose Go source and VCS-free binary are **provably identical** to
 `fc30e38` (§0). The Lead's frozen SHA is the release record; this document records what was run and what it can
 and cannot prove.
 

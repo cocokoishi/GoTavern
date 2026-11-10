@@ -7,9 +7,9 @@ This file is the live index; it changes as evidence lands and never rewrites the
 
 | field | value |
 |---|---|
-| stage | **candidate frozen: full 14-gate same-SHA wave dispatched; soak + publication follow** |
+| stage | **PUBLISHED 2026-11-10T09:15:50Z: https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.20** |
 | baseline | `v0.1.0-alpha.19` published; pinned SillyTavern `1.19.0` @ `06bde939…` unchanged |
-| candidate | see [`same-sha-evidence.md`](same-sha-evidence.md) (filled from the wave) |
+| tag / candidate | annotated `v0.1.0-alpha.20` (object `f25fbb6`) peels to `260b790` (`260b790`) |
 | subagents | `source-audit` (A), `oracle-corpus` (B), `perf-release` (C) — exactly three, long-lived |
 | gates | same **14 required gates**; none added, removed, renamed, skipped or weakened |
 

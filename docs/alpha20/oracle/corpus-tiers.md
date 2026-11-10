@@ -22,7 +22,7 @@ tree is an input, not a commit); the manifest is the digest a consumer re-walks.
 | base round 1 (partial by design) | `a19-corpus-builder.mjs` round 1 through `run-against-pinned.mjs` | real UI: 3 lorebooks imported, 3 presets imported+edited, 24 character cards imported, personas/regex/quick-replies/STscript-variable extras, hand-created card + world, 2 chats with real turns before the round was stopped to avoid 18 more slow chat files under a saturated host |
 | category top-up | `a20-corpus-topup.mjs` (new) | imports the SHORTFALL through the real controls: `#character_import_file` (38 cards), `#world_import_file` (7+1 books × 20 entries), `#openai_preset_import_file` (16 presets), the group panel (`createGroupUiFirst`, 8 groups) |
 | chats + messages | `a20-corpus-fill.mjs` (new) + `a20-corpus-catchup.mjs` (new) | chats: 6 real UI New Chat actions (card click + `#new_chat`/New Chat control) + the product's own New Chat function (`script.doNewChat`, 90 recorded calls) for volume; messages: a bounded sample of real sends through `#send_textarea`/`#send_but` against the deterministic recording peer, the rest appended to the page model and persisted by the product's `saveChatConditional` |
-| Tavern Helper | `install-pinned-extension.mjs` + `a19-corpus-gapfill.mjs` | pinned JS-Slash-Runner `837a6288135cde61522a9279173b98020f08807e` (display 酒馆助手, version 4.11.3, 266 files) installed from the offline seed with a frozen local origin; helper load + `globalThis.TavernHelper` variable round trip + verbs exercised through the unmodified UI |
+| Tavern Helper | `install-pinned-extension.mjs` + `a19-corpus-gapfill.mjs` | pinned JS-Slash-Runner `837a628` (display 酒馆助手, version 4.11.3, 266 files) installed from the offline seed with a frozen local origin; helper load + `globalThis.TavernHelper` variable round trip + verbs exercised through the unmodified UI |
 | provenance | `a20-corpus-provenance.mjs` (new) | classifies every persisted message from the JSONL bytes: product-save marker, UI-turn marker + its assistant reply, product-native chat greeting |
 | finalize + report | `a19-corpus-finalize.mjs` + `a20-corpus-report.mjs` (new) | frozen only after the deferred step; target/achieved/boundary and the four provenance layers |
 
@@ -77,7 +77,7 @@ Derived by `a20-corpus-provenance.mjs` from the 163 persisted chat JSONL files (
 
 | field | value |
 |---|---|
-| pinned commit | `837a6288135cde61522a9279173b98020f08807e` |
+| pinned commit | `837a628` |
 | install | offline seed → `default-user/extensions/JS-Slash-Runner`, origin frozen to a local bare mirror inside the data root (no network for the update path) |
 | manifest | display `酒馆助手`, version `4.11.3`, 266 files |
 | gapfill | 12 steps, 1 failed **by design** (`extension-enabled-through-ui`: the pinned revision auto-enables at load and the Extensions panel has no matching toggle — same disclosed red-by-design as alpha.19) |

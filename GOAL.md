@@ -515,6 +515,24 @@ corpus's own limits disclosed (396 UI-turn / 772 product-save-path messages in t
 extension auto-enabled at load, one recorded third-party egress request, `-race` only on Linux, darwin/arm64
 and windows/arm64 recorded as build-only/platform limitations).
 
+**Update, 2026-11-09 (`v0.1.0-alpha.20` PUBLISHED).** alpha.20 changes how the compatibility claim is
+reached, not its §14 verdict: nine defects found by reading the real production source were fixed with
+reproducers (the SD socket-close interrupt firing after every completed request; stale cached avatars after
+avatar mutations; the card base64 decoder rejecting what pinned's lenient decoder reads; provider redirects
+stopping one hop early; `sanitize-filename` replacement-mode divergence; `/version`'s missing 304 face; the
+backup-download `send()` contract), and the two gaps alpha.18/19 recorded as unimplemented were closed (the
+pinned `chat_metadata.integrity` guard and the group-save auto-backup). The JSON hot path now serializes with
+one buffer: world 4 MiB −47.8% B/op and −58.8% allocs, chats 2,000 messages −52.6% B/op and −61.9% allocs,
+byte-identical to the pre-change output against a frozen golden; the 60-minute soak on the frozen candidate
+reported 0 errors with a stable per-boot RSS and an explicit `UNPROVEN` leak verdict. The corpus remains
+agent-authored and UI-originated (medium tier: 64 cards / 12 books / 229 entries / 20 presets / 163 chats /
+3,000 messages / 8 groups, with separate UI-created vs product-native counters), so §14 stays **NOT MET for
+the strong form** and `PRIVATE_NOT_RUN`: this release is stronger evidence about the same kind of tree, not
+proof about a real person's long-lived private directory. `-race` remains Linux-only; darwin/arm64 runtime
+and windows/arm64 runtime remain recorded platform limitations; the oracle keeps its disclosed differences
+(Brotli codec-only, the `_cache/characters` read/write cache not implemented, the dominantColor ±1
+normalisation).
+
 The M0 audit of 2026-11-03 named two concrete reasons the sentence could not then be upgraded. Both
 were RE-MEASURED this round rather than quoted: (1) **response compression** — no longer a reason; the
 pinned compression contract is implemented (`internal/server/compression*.go`) and pinned against a
