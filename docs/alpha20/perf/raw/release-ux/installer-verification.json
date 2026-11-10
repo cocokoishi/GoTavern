@@ -1,0 +1,72 @@
+﻿{
+    "generatedAt":  "2026-11-09T19:16:24.9494529-08:00",
+    "host":  "windows/arm64, Go 1.27.3",
+    "localOnly":  "Linux/macOS/Docker cannot execute on this host; those rows are marked UNEXECUTED-LOCAL and remain CI gates",
+    "results":  [
+                    {
+                        "id":  "assets-downloaded",
+                        "ok":  true,
+                        "detail":  "alpha19=True alpha18=True"
+                    },
+                    {
+                        "id":  "V1-fresh-specific-version",
+                        "ok":  true,
+                        "detail":  "exit=0 version=GoTavern v0.1.0-alpha.19\r\nSillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)"
+                    },
+                    {
+                        "id":  "V1-launcher-and-metadata",
+                        "ok":  true,
+                        "detail":  "Start.cmd + BUILD-INFO present"
+                    },
+                    {
+                        "id":  "V2-reinstall-preserves-user-state",
+                        "ok":  true,
+                        "detail":  "exit=0 hashesEqual=True"
+                    },
+                    {
+                        "id":  "V2-summary-names-preserved-state",
+                        "ok":  true,
+                        "detail":  "installer prints the preserved runtime state"
+                    },
+                    {
+                        "id":  "V3-tampered-archive-refused",
+                        "ok":  true,
+                        "detail":  "exit=1 matchesShaError=True exeAbsent=True"
+                    },
+                    {
+                        "id":  "V4-unpinned-latest",
+                        "ok":  true,
+                        "detail":  "exit=0 version=GoTavern v0.1.0-alpha.19\r\nSillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)"
+                    },
+                    {
+                        "id":  "V5-manual-unpack-checksum",
+                        "ok":  true,
+                        "detail":  "checksumMatches=True version=GoTavern v0.1.0-alpha.19\r\nSillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)"
+                    },
+                    {
+                        "id":  "V6-upgrade-alpha18-to-19",
+                        "ok":  true,
+                        "detail":  "18=GoTavern v0.1.0-alpha.18\r\nSillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127) 19=GoTavern v0.1.0-alpha.19\r\nSillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127) configEqual=True"
+                    },
+                    {
+                        "id":  "V6-rollback-to-alpha18",
+                        "ok":  true,
+                        "detail":  "exit=0 version=GoTavern v0.1.0-alpha.18\r\nSillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127) configEqual=True"
+                    },
+                    {
+                        "id":  "V7-installed-binary-boots",
+                        "ok":  true,
+                        "detail":  "exit=0 boot artifact=True"
+                    },
+                    {
+                        "id":  "V8-launcher-passthrough",
+                        "ok":  true,
+                        "detail":  "Start.cmd forwards arguments to gotavern.exe"
+                    },
+                    {
+                        "id":  "V9-platform-limits",
+                        "ok":  true,
+                        "detail":  "Linux/macOS/Docker/manual-unpack-on-Unix are UNEXECUTED-LOCAL on this host (no docker, no WSL, no macOS); their gates are release-install-smoke.yml / release-qualification.yml / dropin-qualification.yml in CI"
+                    }
+                ]
+}

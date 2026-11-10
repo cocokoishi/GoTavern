@@ -1,0 +1,78 @@
+{
+    "generatedAt":  "2026-11-09T19:16:55.6361045-08:00",
+    "binary":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\installer\\v1-fresh\\gotavern.exe",
+    "sha256":  "C23BB54CAE586BD612C6BDC0257DE7F675AB5620261C4EFBD2FFEAF0D4FD7FE0",
+    "host":  "windows/arm64, Go 1.27.3",
+    "results":  [
+                    {
+                        "id":  "subject",
+                        "state":  "INFO",
+                        "detail":  "binary=C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\installer\\v1-fresh\\gotavern.exe sha256=C23BB54CAE586BD612C6BDC0257DE7F675AB5620261C4EFBD2FFEAF0D4FD7FE0 installedArchive=True"
+                    },
+                    {
+                        "id":  "cli-help",
+                        "state":  "PASS",
+                        "detail":  "exit=0 namesSelf=True"
+                    },
+                    {
+                        "id":  "cli-version",
+                        "state":  "PASS",
+                        "detail":  "GoTavern v0.1.0-alpha.19 | SillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)"
+                    },
+                    {
+                        "id":  "cli-version-flag",
+                        "state":  "PASS",
+                        "detail":  "exit=0 out=GoTavern v0.1.0-alpha.19 | SillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)"
+                    },
+                    {
+                        "id":  "cli-ready-line",
+                        "state":  "PASS",
+                        "detail":  "readyLine=Ready: GoTavern is serving at http://127.0.0.1:18790/ answeredVersion=True body={\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}"
+                    },
+                    {
+                        "id":  "cli-boot-identity-paths",
+                        "state":  "PASS",
+                        "detail":  "stdoutLines=7 sample=GoTavern v0.1.0-alpha.19 (SillyTavern 1.19.0 baseline, 06bde939fb1e9c4c8d8641d810f0a916b5bce127) | Install root: C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\installer\\v1-fresh | Config file:  C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\cli\\first-run\\config.yaml | Data root:    C:\\Users\\koishi\\AppData\\Local\\Te"
+                    },
+                    {
+                        "id":  "cli-quiet-default",
+                        "state":  "PASS",
+                        "detail":  "no stage timings on the default (non-verbose) surface"
+                    },
+                    {
+                        "id":  "cli-no-ansi-when-redirected",
+                        "state":  "PASS",
+                        "detail":  "ANSI escapes present=False (non-TTY redirect)"
+                    },
+                    {
+                        "id":  "cli-port-conflict",
+                        "state":  "PASS",
+                        "detail":  "exit= namesPort=True text=gotavern: Error: Startup aborted because IPv4 is the only enabled protocol and its listen port is already in use.: listen tcp4 127.0.0.1:18791: bind: Only one usage of each socket address (protocol/network address/port) is normally permitte"
+                    },
+                    {
+                        "id":  "cli-invalid-config",
+                        "state":  "PASS",
+                        "detail":  "exit= namesConfig=True text=Could not add missing config values to config.yaml YAMLParseError: yaml: line 1: did not find expected \u0027,\u0027 or \u0027]\u0027 | FATAL: Failed to read config.yaml. Please check the file for syntax errors. | yaml: line 1: did not find expected \u0027,\u0027 or \u0027]\u0027"
+                    },
+                    {
+                        "id":  "cli-launcher-passthrough",
+                        "state":  "PASS",
+                        "detail":  "exit=0 out=GoTavern v0.1.0-alpha.19 | SillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)"
+                    },
+                    {
+                        "id":  "cli-tty-colour",
+                        "state":  "UNEXECUTED-LOCAL",
+                        "detail":  "no interactive TTY in this harness; the non-TTY branch is exercised above (no ANSI when redirected). CI: release-install-smoke / release-qualification console fixtures"
+                    },
+                    {
+                        "id":  "cli-reverse-proxy",
+                        "state":  "UNEXECUTED-LOCAL",
+                        "detail":  "needs an external reverse proxy; CI: dropin-qualification.yml and docs/INSTALLATION.md section 5"
+                    },
+                    {
+                        "id":  "installer-linux-macos-docker",
+                        "state":  "UNEXECUTED-LOCAL",
+                        "detail":  "no docker/WSL/macOS on this host; CI: release-install-smoke.yml (install.sh), release-qualification.yml (linux qemu + darwin), docker.yml (registry pull-back), dropin-qualification.yml"
+                    }
+                ]
+}
