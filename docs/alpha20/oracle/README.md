@@ -34,8 +34,8 @@ tree itself stays outside the repository; only the manifest and this report are 
 **Status: a medium-tier tree was built and counted — see [`corpus-tiers.md`](corpus-tiers.md) for the
 measured counts, the four provenance layers and the disclosed boundary that chats created through the
 product's New Chat function are PRODUCT-NATIVE, not UI-created. The final manifest/report were deferred by
-the Lead's quiet window and are NOT claimed here until they are written.** `pinned-data-template.md` and
-`oracle-strengthening.md` are written only when the measurement they describe has run.
+the Lead's quiet window and are NOT claimed here until they are written.** `pinned-data-template.md` is
+written only when the template provenance probe has run.
 
 ## Oracle strengthening (M3)
 
@@ -54,6 +54,9 @@ extended additively; no second oracle framework is created.
   to be byte-unchanged; a negative case proves the single documented normalisation (wall-clock backup
   timestamp) is not over-broad. **It is written but NOT executed yet** (it refuses to run on a non-green
   baseline), and is reported as NOT EXECUTED until it has run.
+
+The full M3 status — executed RED, written-but-not-run, and the NOT EXECUTED fault-injection classes with
+their reasons — is in [`oracle-strengthening.md`](oracle-strengthening.md).
 
 ## Method rules this lane follows
 
