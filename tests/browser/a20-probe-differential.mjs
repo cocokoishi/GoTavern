@@ -80,6 +80,32 @@ async function backupFiles(dir) {
 const BACKUP_NAME = /^chat_[a-z0-9_]+_\d{8}-\d{6}\.jsonl$/;
 const namePatternOk = names => names.every(name => BACKUP_NAME.test(name));
 
+/**
+ * The config the subject was actually booted with, and the backups.chat values resolved from it. Every
+ * subject in this driver is booted with an EXPLICIT `--configPath <dataRoot>/config.yaml` (see bootPinned /
+ * bootGotavern in the kit), so a difference in these values would be a harness-fidelity gap and must not be
+ * reported as a product difference.
+ */
+async function configIdentity(dataRoot) {
+    const file = path.join(dataRoot, 'config.yaml');
+    const text = await fsp.readFile(file, 'utf8').catch(() => '');
+    const lines = text.split('\n');
+    const resolved = {};
+    let inBackups = false;
+    let inChat = false;
+    for (const line of lines) {
+        if (/^backups:\s*$/.test(line)) { inBackups = true; inChat = false; continue; }
+        if (inBackups && /^\s+chat:\s*$/.test(line)) { inChat = true; continue; }
+        if (inBackups && inChat) {
+            const match = line.match(/^\s+(enabled|checkIntegrity|maxTotalBackups|throttleInterval):\s*(.+?)\s*$/);
+            if (match) resolved[match[1]] = match[2];
+            if (/^\S/.test(line)) { inBackups = false; inChat = false; }
+        }
+    }
+    return { path: 'config.yaml', sha256: sha256(Buffer.from(text, 'utf8')), resolvedBackupConfig: resolved };
+}
+const settle = async (dir) => settleBackups(dir);
+
 async function stopAndReboot(subject, dataRoot, binary) {
     const exit = await subject.server.stop();
     const server = subject.kind === 'pinned'
@@ -210,6 +236,9 @@ async function runChatLeg(kind, binary) {
     // the payload bytes. This is the comparison that does not race the wall-clock timer.
     const chatScheduler = await observeBackupScheduler({ save, backupsDir, label: 'chat' });
     rows.push({ id: 'B0-backup-scheduler', status: chatScheduler.status, bodyText: chatScheduler.bodyText, chatFile: null, backups: null, scheduler: chatScheduler });
+    // The config the scheduler row ran under (captured BEFORE any restart/config edit below), so a scheduler
+    // difference can be classified as product vs harness-fidelity from the artifact itself.
+    rows.push({ id: 'B0-config-at-scheduler', status: null, bodyText: null, chatFile: null, backups: null, config: await configIdentity(dataRoot) });
 
     // restart: backups.chat.checkIntegrity=false -> the mismatch is accepted by BOTH subjects
     const checkEdit = await patchConfigLine(dataRoot, 'checkIntegrity: true', 'checkIntegrity: false');
@@ -279,6 +308,7 @@ async function runGroupLeg(kind, binary) {
         save: async ({ chat }) => save({ id: GROUP_ID, chat, force: true }),
     });
     rows.push({ id: 'G7b-backup-scheduler', status: groupScheduler.status, bodyText: groupScheduler.bodyText, chatFile: null, backups: null, scheduler: groupScheduler });
+    rows.push({ id: 'G7b-config-at-scheduler', status: null, bodyText: null, chatFile: null, backups: null, config: await configIdentity(dataRoot) });
 
     // flush-on-close: after the scheduler row the window is CLOSED, so the first save below is
     // deterministically a leading invocation (one backup before the stop) and the second one is the

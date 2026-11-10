@@ -62,3 +62,17 @@ flush: process.on('exit') -> every throttled backup function .flush()
 - A SIGKILL losing the pending trailing backup is reasoned from `process.on('exit')` but not separately
   probed; the graceful-exit path is what G9 measured.
 - Failures injected in G12 are probe filesystem setups (labelled in the row), not product actions.
+
+## Go-vs-pinned differential (a20-probe-differential.mjs)
+
+The group matrix was re-run on both subjects over separate copies of the recorded template. Pre-`fb24983`:
+4/11 rows MATCH (RED artifact committed as `differential-before-fb24983.json`). Post-`fb24983` (merged main):
+**10/12 rows MATCH** — missing-id/non-array bodies, group path `group chats/<id>.jsonl`, persisted bytes,
+mismatch refusal, force overwrite, restart read-back and retention counts all match. The two differing rows are
+the dedicated backup-scheduler measurement and the flush row that carries the same one file; a controlled
+same-config experiment (`backup-window/evidence.json`, summarised in
+[`oracle-strengthening.md`](oracle-strengthening.md)) shows both subjects have the SAME throttle-window policy
+(leading backup immediately for a save 10,500 ms after the previous one; throttled at 1,500 ms), so the
+scheduler row is classified **HARNESS-ERROR**, not a product difference. The flush row's differing set is the
+same one file produced by that same scheduler snapshot.
+

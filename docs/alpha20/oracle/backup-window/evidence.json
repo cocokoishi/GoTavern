@@ -1,0 +1,86 @@
+{
+  "arch": "arm64",
+  "argv": [],
+  "configIdentity": {
+    "gotavern": {
+      "path": "config.yaml",
+      "resolved": {
+        "checkIntegrity": "true",
+        "enabled": "true",
+        "file": "config.yaml",
+        "maxTotalBackups": "-1",
+        "throttleInterval": "10000"
+      },
+      "sha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461"
+    },
+    "pinned": {
+      "path": "config.yaml",
+      "resolved": {
+        "checkIntegrity": "true",
+        "enabled": "true",
+        "file": "config.yaml",
+        "maxTotalBackups": "-1",
+        "throttleInterval": "10000"
+      },
+      "sha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461"
+    },
+    "sameConfig": true
+  },
+  "finishedAt": "2026-11-10T04:00:57.541Z",
+  "gotavern": {
+    "binarySha256": "28815ec5002b45c67dd7ec233966db47b7e2e283fd32cc88666688e1d35a8c3e"
+  },
+  "gotavernTimeline": {
+    "firstLeadingBackupImmediate": 1,
+    "firstSaveAt": "2026-11-10T04:00:19.789Z",
+    "firstSaveStatus": 200,
+    "insideLeadingBackupImmediate": 0,
+    "insideSaveAt": "2026-11-10T04:00:34.241Z",
+    "insideSaveStatus": 200,
+    "insideTrailingBackupAfterSettle": 0,
+    "secondImmediateShaMatchesPayload": true,
+    "secondLeadingBackupImmediate": 1,
+    "secondSaveAt": "2026-11-10T04:00:30.877Z",
+    "secondSaveStatus": 200,
+    "secondTrailingBackupAfterSettle": 0,
+    "secondTrailingShaMatchesPayload": false,
+    "sinceFirstSaveMs": 10500
+  },
+  "kind": "a20-pinned-probe-v1",
+  "node": "v24.19.0",
+  "note": "The inside-window contrast save (1500 ms after the second) is recorded too; it is expected to be throttled (no immediate leading backup) on BOTH subjects and its trailing backup is measured after the window settles.",
+  "pinned": {
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "pinnedCommit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+  "pinnedRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern",
+  "pinnedTimeline": {
+    "firstLeadingBackupImmediate": 1,
+    "firstSaveAt": "2026-11-10T03:59:35.819Z",
+    "firstSaveStatus": 200,
+    "insideLeadingBackupImmediate": 0,
+    "insideSaveAt": "2026-11-10T03:59:50.205Z",
+    "insideSaveStatus": 200,
+    "insideTrailingBackupAfterSettle": 0,
+    "secondImmediateShaMatchesPayload": true,
+    "secondLeadingBackupImmediate": 1,
+    "secondSaveAt": "2026-11-10T03:59:46.916Z",
+    "secondSaveStatus": 200,
+    "secondTrailingBackupAfterSettle": 0,
+    "secondTrailingShaMatchesPayload": false,
+    "sinceFirstSaveMs": 10500
+  },
+  "platform": "win32",
+  "probe": "backup-window",
+  "purpose": "measure the pinned vs GoTavern backup throttle window boundary with identical config files, and record each subject config path/digest/resolved backups.chat values",
+  "question": "was the measured save (10500 ms after the previous save in the same throttle key) a LEADING invocation on both subjects, with the same resolved backups.chat config?",
+  "repoRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a20-B",
+  "schemaVersion": 1,
+  "startedAt": "2026-11-10T03:59:11.740Z",
+  "unproven": [],
+  "verdict": {
+    "classification": "MATCH",
+    "reason": "with the same resolved config, both subjects perform a leading backup for a save 10500 ms after the previous one"
+  },
+  "verdicts": []
+}
