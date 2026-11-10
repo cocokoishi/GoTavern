@@ -190,15 +190,55 @@ func readPngCardText(image []byte) (string, error) {
 	return "", errors.New("No PNG metadata.")
 }
 
+// decodeBase64UTF8 is character-card-parser.read's
+// `Buffer.from(text, 'base64').toString('utf8')`, and Node's Buffer.from is LENIENT in ways Go's
+// encoding/base64 is not (measured against the pinned Node 24.19.0 runtime, alpha.20 audit A20-D):
+//
+//   - every character outside the base64 alphabet is SKIPPED, not only CR/LF. Go ignores only '\r' and
+//     '\n', so an interior space or a stray '#' aborted the decode here;
+//   - the URL-safe '-' and '_' are accepted as values 62/63, so a payload produced by Python's
+//     `base64.urlsafe_b64encode` decoded in pinned and failed here;
+//   - the first '=' terminates the payload and everything after it is ignored;
+//   - a lone leftover character (length % 4 == 1) is dropped instead of raising a length error;
+//   - invalid UTF-8 in the decoded bytes becomes U+FFFD, because JS strings are UTF-16 text.
+//
+// A card PNG written by such a tool was readable by pinned SillyTavern and unreadable by GoTavern, which
+// surfaced as a card the character list could not process. The output of a VALID standard-base64 card is
+// byte-identical to the previous implementation, so only the formerly-rejected inputs change.
 func decodeBase64UTF8(text string) (string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(text)
-	if err != nil {
-		decoded, err = base64.RawStdEncoding.DecodeString(strings.TrimRight(strings.TrimSpace(text), "="))
-		if err != nil {
-			return "", err
+	filtered := make([]byte, 0, len(text))
+	for index := 0; index < len(text); index++ {
+		character := text[index]
+		if character == '=' {
+			// Node stops at the first padding character and ignores the rest of the input.
+			break
+		}
+		switch {
+		case character >= 'A' && character <= 'Z',
+			character >= 'a' && character <= 'z',
+			character >= '0' && character <= '9':
+			filtered = append(filtered, character)
+		case character == '+' || character == '-':
+			filtered = append(filtered, '+')
+		case character == '/' || character == '_':
+			filtered = append(filtered, '/')
+		default:
+			// Every other byte (whitespace, punctuation, NUL-free junk) is skipped, as Node does.
 		}
 	}
-	return string(decoded), nil
+	// Node decodes complete quartets and a trailing group of 2 or 3; a single leftover character decodes
+	// to nothing rather than an error.
+	if remainder := len(filtered) % 4; remainder == 1 {
+		filtered = filtered[:len(filtered)-1]
+	}
+	for len(filtered)%4 != 0 {
+		filtered = append(filtered, '=')
+	}
+	decoded, err := base64.StdEncoding.DecodeString(string(filtered))
+	if err != nil {
+		return "", err
+	}
+	return strings.ToValidUTF8(string(decoded), "\uFFFD"), nil
 }
 
 // writePngCard mirrors character-card-parser.write: existing `chara`/`ccv3`
