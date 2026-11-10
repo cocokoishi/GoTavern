@@ -141,7 +141,7 @@ check_refused_silently() {
 # program release), v0.1.0-alpha.15 (the evidence-rail release), v0.1.0-alpha.16 (the synthetic adversarial
 # qualification and release-rehearsal release), v0.1.0-alpha.17 (the niche qualification and performance
 # release), v0.1.0-alpha.18 (the deep product-engineering release) and v0.1.0-alpha.19 (the real-interaction oracle
-# release) ARE stable-channel releases. The names are kept for history; the
+# release) and v0.1.0-alpha.20 (the source-audit and performance release) ARE stable-channel releases. The names are kept for history; the
 # channel is what graduates. If a case here goes red, a list entry in scripts/classify-version-tag.sh was removed,
 # neutered or widened away. v0.1.0-alpha.15 is the tag whose release
 # gate refuses plausible-looking evidence (docs/release-manifest.json: required event at the candidate SHA, required
@@ -165,18 +165,23 @@ check 'product-engineering-graduation' 'v0.1.0-alpha.18' stable 0
 check_one_word_on_stdout 'product-engineering-graduation-one-word' 'v0.1.0-alpha.18' stable
 check 'real-interaction-oracle-graduation' 'v0.1.0-alpha.19' stable 0
 check_one_word_on_stdout 'real-interaction-oracle-graduation-one-word' 'v0.1.0-alpha.19' stable
+check 'source-audit-performance-graduation' 'v0.1.0-alpha.20' stable 0
+check_one_word_on_stdout 'source-audit-performance-graduation-one-word' 'v0.1.0-alpha.20' stable
 
 # ---- THE EXCEPTION MUST NOT WIDEN ---------------------------------------------------------------------------------
 # Each of these is one plausible wrong implementation of "the graduated tags graduate": a family prefix
 # (`>= alpha.9`), a regex (`alpha\.9` matching `alpha.9x`/`alpha.09`), a series bump (`alpha.N >= 9`), a different
 # patch, or the exception leaking into build-metadata tags. None of them has been qualified, so each must stay a
 # prerelease. The alpha.19 neighbours are the sharpest cases now: a prefix/range rule would graduate alpha.190 and
-# alpha.19-rc1, a build-metadata-insensitive rule would graduate alpha.19+build.1, and a "current series" rule
-# would graduate alpha.20.
+# alpha.20-rc1, a build-metadata-insensitive rule would graduate alpha.20+build.1, and a "current series"
+# rule would graduate alpha.21.
 check 'alpha-before-graduation' 'v0.1.0-alpha.8' prerelease 0
 check 'alpha-after-graduation-in-series' 'v0.1.0-alpha.10' prerelease 0
 check 'alpha-before-previous-graduation' 'v0.1.0-alpha.11' prerelease 0
-check 'alpha-after-latest-graduation' 'v0.1.0-alpha.20' prerelease 0
+check 'alpha-after-latest-graduation' 'v0.1.0-alpha.21' prerelease 0
+check 'latest-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.200' prerelease 0
+check 'latest-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.20-rc1' prerelease 0
+check 'latest-graduated-tag-with-build-metadata' 'v0.1.0-alpha.20+build.1' prerelease 0
 check 'latest-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.190' prerelease 0
 check 'latest-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.19-rc1' prerelease 0
 check 'latest-graduated-tag-with-build-metadata' 'v0.1.0-alpha.19+build.1' prerelease 0
@@ -264,4 +269,4 @@ if [ "$failed" -ne 0 ]; then
   echo "FAIL: ${failed} of $((passed + failed)) version-classification cases did not hold" >&2
   exit 1
 fi
-echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series), v0.1.0-alpha.13 (the third-party extension compatibility release), v0.1.0-alpha.14 (the engineering-program release), v0.1.0-alpha.15 (the evidence-rail release), v0.1.0-alpha.16 (the synthetic adversarial qualification and release-rehearsal release), v0.1.0-alpha.17 (the niche qualification and performance release), v0.1.0-alpha.18 (the deep product-engineering release) and v0.1.0-alpha.19 (the real-interaction oracle release) are the nine documented equality-based graduations to the stable channel, every neighbouring alpha (including alpha.20, alpha.190, alpha.19-rc1, alpha.19+build.1, alpha.180, alpha.18-rc1, alpha.18+build.1, alpha.170, alpha.17-rc1, alpha.17+build.1, alpha.160, alpha.16-rc1, alpha.16+build.1, alpha.150, alpha.15-rc1 and alpha.15+build.1) is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"
+echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series), v0.1.0-alpha.13 (the third-party extension compatibility release), v0.1.0-alpha.14 (the engineering-program release), v0.1.0-alpha.15 (the evidence-rail release), v0.1.0-alpha.16 (the synthetic adversarial qualification and release-rehearsal release), v0.1.0-alpha.17 (the niche qualification and performance release), v0.1.0-alpha.18 (the deep product-engineering release) and v0.1.0-alpha.19 (the real-interaction oracle release), v0.1.0-alpha.20 (the source-audit and performance release) are the ten documented equality-based graduations to the stable channel, every neighbouring alpha (including alpha.21, alpha.200, alpha.190, alpha.20-rc1, alpha.20+build.1, alpha.19-rc1, alpha.19+build.1, alpha.180, alpha.18-rc1, alpha.18+build.1, alpha.170, alpha.17-rc1, alpha.17+build.1, alpha.160, alpha.16-rc1, alpha.16+build.1, alpha.150, alpha.15-rc1 and alpha.15+build.1) is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"

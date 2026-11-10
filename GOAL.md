@@ -697,3 +697,58 @@ plus the unified evidence from `scripts/verify-release-gates.mjs` and the new ga
 If any of 1-11 cannot be met, the release does not happen and the reason is recorded in
 `docs/alpha19/` as `BLOCKED` with the failing requirement and the run that showed it.
 
+## 16.2 The `v0.1.0-alpha.20` release bar
+
+`v0.1.0-alpha.20` is the source-audit and performance release. It may be tagged only when ALL of the
+following hold on ONE commit (the machine-consumed form is `docs/release-manifest.json` — still the same
+**14 required gates**, no gate may be removed, skipped, renamed or weakened — plus the unified evidence from
+`scripts/verify-release-gates.mjs` and the real-UI gate's `scripts/verify-a19-evidence.mjs`):
+
+1. the full same-SHA wave: all 14 required `workflow_dispatch` runs at the candidate with their manifest
+   selections, verifier PASS 14/14, no spliced run from another SHA, no narrowed dispatch;
+2. the source audit is real: `docs/alpha20/audit/index.md` records every CONFIRMED defect with a reproducer,
+   pinned source/behaviour, RED/GREEN and a named regression guard; every High/Critical is FIXED on the
+   candidate or the release is `BLOCKED`; the fixed findings' commits are ancestors of the candidate and
+   their RED/GREEN claims are reproducible from the committed tests;
+3. the performance claim is measured, not asserted: production-code changes driven by profiles, a
+   same-input ABBA artifact with an A/A self-test, >=30% on one representative hotspot and >=15% on two more
+   (or an explicit `NOT SEPARABLE` per row), the 10k-card B/op and allocs moved in the right direction, no
+   semantic regression (the oracle/differential suites pass), and a 60-minute mixed-load soak whose resource
+   verdict states that no observed growth is not a leak proof;
+4. alpha.19's five-layer live oracle is still green and STRONGER: new complex scenarios really executed, the
+   comparator mutation set demonstrates its teeth (each mutation reds a named guard, restore greens it, no
+   mutation survives in the tree), failure-injection cases assert data safety/no-false-success/recoverability/
+   resource release, and all egress stays controlled; disclosed differences (Brotli codec-only,
+   `_cache/characters` read/write cache, dominantColor ±1, the 26 normalisations / 6 notCompared) are
+   re-decided with evidence and never widened;
+5. the product experience improves measurably: README's first screen shrinks by at least 40% against
+   alpha.19's 11,170 chars while keeping install commands and the honest-limits block, the performance
+   figure is a hand-authored dark+light SVG generated from validated artifacts with a recorded data source,
+   honest zero-based axes and passing syntax/render/narrow-viewport/overflow/value/contrast checks, and the
+   CLI/installer/Docker paths are re-verified (an existing user's data is never overwritten);
+6. `scripts/classify-version-tag.sh` classifies `v0.1.0-alpha.20` stable, its equality list gains the tag in
+   the same change, and `scripts/test-classify-version-tag.sh` proves the new tag stable while every
+   version-shaped neighbour (`v0.1.0-alpha.21`, `v0.1.0-alpha.200`, `v0.1.0-alpha.20-rc1`,
+   `v0.1.0-alpha.20+build.1`, `v0.1.0-alpha.19+build.1`, …) stays prerelease — a named case per neighbour,
+   never a range/regex rule;
+7. `docs/release-notes-v0.1.0-alpha.20.md` passes the curated-notes gate, names the tag, contains
+   `## Known limitations` and `## Checksums`, has no placeholder, and states every unproven item: §14 status
+   (still **NOT MET**, `PRIVATE_NOT_RUN`), every not-executed platform/test, the RSS-only soak caveat, and
+   each kept disclosed difference with the reason it was kept;
+8. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six canonical archives plus
+   `checksums.txt`, and the release body carries the same-SHA evidence table;
+9. Docker `:v0.1.0-alpha.20` and `:latest` publish and resolve to the same digest while older images stay
+   unchanged;
+10. after publication the published bytes are verified INDEPENDENTLY: all six archives re-downloaded and
+    checksummed against `checksums.txt` and the release asset digests, an unpacked published binary prints
+    `GoTavern v0.1.0-alpha.20` on the pinned baseline, a fresh boot answers `/version`, `/` and a data
+    request plus a write/read/restart closure, the installer with no version argument installs alpha.20, and
+    `releases/latest` points at alpha.20;
+11. no force push, no tag move (alpha.19 and older published tags unchanged), no `--no-verify`, no private or
+    corpus content in any artifact;
+12. `GOAL.md` §14 remains **NOT MET** and no document upgrades it on an agent-created corpus, however large.
+
+If any of 1-11 cannot be met, the release does not happen and the reason is recorded under `docs/alpha20/`
+as `BLOCKED` with the failing requirement and the run that showed it.
+
+
