@@ -16,12 +16,10 @@ package server
 // restore round trip is covered by backups_restore_roundtrip_test.go.
 
 import (
-	"github.com/cocokoishi/gotavern/internal/httpx"
-	"mime"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -95,6 +93,16 @@ func (runtime *accountRuntime) serveBackupsChatDelete(w http.ResponseWriter, req
 }
 
 // serveBackupsChatDownload is backups.js:54: res.download(filePath).
+//
+// PINNED CONTRACT: res.download -> res.sendFile -> send@0.19.0 with acceptRanges/cacheControl/etag/
+// lastModified and maxAge 0. The recorded fixture carries send's STAT etag for a 42-byte file with mtime
+// 1700000000: W/"2a-18bcfe56800" (hex size - hex mtime MILLISECONDS). This route previously hand-wrote a
+// CONTENT-hash ETag and no Last-Modified/Accept-Ranges/Cache-Control, so its ETag could never revalidate
+// against pinned's and a download manager could not resume; the generic replay comparator only asserted
+// that an ETag was present, which is why it stayed green. It now goes through the shared pinned-send
+// implementation the static routes already use (sendPinnedFrontendStaticBytes), which reproduces the stat
+// ETag, Last-Modified, Accept-Ranges, Cache-Control and the Range/206 behaviour; Express's req.fresh is
+// false for a POST, and httpx.IsFresh refuses POST too, so this route still never answers 304.
 func (runtime *accountRuntime) serveBackupsChatDownload(w http.ResponseWriter, request *http.Request) {
 	_, directories, ok := runtime.sdUser(w, request)
 	if !ok {
@@ -109,19 +117,13 @@ func (runtime *accountRuntime) serveBackupsChatDownload(w http.ResponseWriter, r
 		backendsStatus(w, http.StatusNotFound)
 		return
 	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		backendsStatus(w, http.StatusInternalServerError)
-		return
-	}
-	contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(filePath)))
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(filePath)+"\"")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.Header().Set("ETag", httpx.WeakETag(data))
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	name := filepath.Base(filePath)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	sendPinnedFrontendStaticBytes(w, request, name, frontendStaticFile{
+		size:       info.Size(),
+		open:       func() (io.ReadSeekCloser, error) { return os.Open(filePath) },
+		read:       func() ([]byte, error) { return os.ReadFile(filePath) },
+		modTime:    info.ModTime(),
+		hasModTime: true,
+	})
 }
