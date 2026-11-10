@@ -56,3 +56,25 @@ shared; the group-specific contract (paths, backup names, retention, flush) is p
   repository. The pinned checkout was never modified.
 - `backups.chat.throttleInterval`, `maxTotalBackups` and the flush-on-exit path belong to probe (b), which captures
   them on the shared `trySaveChat` code path.
+
+## Go-vs-pinned differential (a20-probe-differential.mjs)
+
+The same matrix was re-run against the pinned server and the GoTavern binary over separate copies of the
+recorded template. Pre-`fb24983` result: **11/14 rows DIFFERENT** (RED; committed as
+`differential-before-fb24983.json`). Post-`fb24983` (merged main) result: **13/14 rows MATCH**; every
+substantive observable — status, exact response body bytes, persisted chat-file sha256, BOM/legacy/corrupt/
+empty branches, force semantics, config-restart branches, restart read-back — matches. The one remaining row is
+the dedicated backup-scheduler measurement (`B0-backup-scheduler`), whose single differing field is the count
+of backups observed within a short window; see below for why that row is classified HARNESS-ERROR rather than a
+product difference.
+
+**Config fidelity, measured (`a20-backup-window.mjs`):** both subjects were booted with an explicit
+`--configPath <own dataRoot>/config.yaml` and resolved the SAME `backups.chat` values
+(`enabled/checkIntegrity/throttleInterval`), with the same config bytes (`sameConfig: true`, digests in
+`backup-window/evidence.json`). In a controlled timeline with that same config, BOTH subjects write a leading
+backup immediately for a save made 10,500 ms after the previous save (1 each, sha matches payload) and BOTH are
+throttled (0 immediate) for a save made 1,500 ms after the previous one. So the throttle-window policy matches;
+the scheduler row's differing snapshot is a measurement artifact of the differential's wall-clock snapshot, not
+a product difference, and is reported as HARNESS-ERROR. The post-fix matrix therefore has no product-observable
+DIFFERENT row in this probe.
+

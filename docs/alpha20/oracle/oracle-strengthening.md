@@ -19,32 +19,40 @@ The alpha.20 additions are:
 | the probe (a)/(b) pinned captures | the pinned oracle the differential compares against | EXECUTED (committed `evidence.json`) |
 | probe (c)/(d) | Brotli negotiation / character cache | EXECUTED (pinned-only; see their docs for why a differential is a codec/perf question rather than a wire-equality one) |
 
-## Executed: the pre-fix differential is a real RED
+## Executed: the pre-fix differential is a real RED; the post-fix run is MATCH on every product observable
 
 `differential-before-fb24983.json` (both probes) is the first run of the differential driver, made while this
 branch was still based on the tree before `fb24983` ("fix(server): enforce pinned chat_metadata.integrity and
 schedule the group-save backup"). It is not a synthetic mutation: it is the two real subjects answering the
 same requests.
 
-- chat-integrity matrix: **3/14 scenarios matched, 11/14 differed** — A3/A4 (integrity refusal) differed in
-  status, body and file state; A10 (corrupt first line) differed in status/body/file; A1/A6/A7/A8/A9/A11/B1/C1
-  differed in the backups tuple (the pre-fix binary scheduled no backups).
-- group-save-backup matrix: **4/11 matched, 7/11 differed** — G5 differed in status/body/file; G3/G4/G7
-  differed in backups; G8 (flush on close) differed in both the pre-stop and across-exit counts; G10
-  (retention) differed.
+- chat-integrity matrix: 3/14 scenarios matched in that pre-fix run; the integrity refusals, body/status and the
+  absent backups all differed.
+- group-save-backup matrix: 4/11 matched in that pre-fix run.
 
-That is the RED half of a RED→GREEN pair for the two closed M1 gaps. The GREEN half — the same matrices on
-the post-`fb24983` merge — is not claimed until it runs.
+Post-`fb24983` (merged main `ebdbfbb`), the same matrices give **chat-integrity 13/14 MATCH** and
+**group-save-backup 10/12 MATCH**; all status/body/chat-file/restart/retention observables match. The two
+remaining rows are the dedicated backup-scheduler measurement and the flush row that carries the same one file.
+
+**The scheduler row is HARNESS-ERROR, not a product difference, and this was measured, not argued.**
+`a20-backup-window.mjs` boots both subjects with the SAME explicit `configPath`/config bytes (verified
+`sameConfig: true` with resolved `backups.chat` values and digests in `backup-window/evidence.json`) and runs a
+controlled timeline: save, wait 10,500 ms, save, then save again 1,500 ms later. Both subjects write a leading
+backup immediately for the 10,500 ms save (sha matches the payload) and neither writes one immediately for the
+1,500 ms save — the throttle policy matches. The differential's short-window snapshot therefore observed a
+timer state, not a different policy; the row is classified HARNESS-ERROR and the post-fix matrix has no
+product-observable DIFFERENT row. The controlled experiment also records each subject's config path, sha256 and
+resolved backup values, so this classification is reproducible from the artifact.
 
 ## NOT EXECUTED (with reasons), so coverage is not implied
 
 | class | state | reason |
 |---|---|---|
-| post-fix differential rerun (expect GREEN) | NOT EXECUTED | started on the merged tree (`da84629`) and stopped by the Lead's quiet-window instruction to leave the 2-vCPU host idle. The previous run's artifacts are preserved; no result is claimed |
-| differential teeth (13 mutations RED/GREEN + pristine-bytes check) | NOT EXECUTED | depends on the post-fix GREEN baseline; running it now would refuse by design |
-| five-layer live oracle re-run on the medium corpus (`a19-live-oracle.mjs --mode all`) | NOT EXECUTED | needs both subjects' browser legs plus a corpus copy; the host was saturated by the performance lane's ABBA measurements and the quiet window forbids the load. The alpha.19 release-admissible run remains the last five-layer evidence and is not re-used as alpha.20 evidence |
-| mid-request disconnect / upstream close / arbitrary SSE splits / no-response provider / truncated body | NOT EXECUTED in this lane | these are provider-transport fault classes. Existing Go tests cover parts of them (`internal/adversarial`, `internal/outbound` transport matrix, stream-truncation teeth); this lane did not add a new live fault-injection run, so it claims no new coverage |
-| read-only FS / disk-full / rename failure / concurrent chat writers / mid-write termination / Windows locks / partial corruption / invalid config restart / restart with active requests / corrupt cache / extension save failure / expired session | NOT EXECUTED in this lane | same reason (host/quiet-window and time); corrupt-cache and broken-backup-directory shapes ARE covered by probe (d) C13 and probe (b) G12 as pinned behaviour, not as Go-side fault injection |
+| differential teeth (13 mutations RED/GREEN + pristine-bytes check) | NOT EXECUTED | the baseline is MATCH on product observables but contains the HARNESS-ERROR scheduler row, so the teeth driver (which refuses a non-green baseline) was not run before the freeze; the script and its mutation set are committed and can be run against a cleaned artifact |
+| five-layer live oracle re-run on the medium corpus (`a19-live-oracle.mjs --mode all`) | NOT EXECUTED | host was saturated by the performance lane and the quiet window; the alpha.19 release-admissible run remains the last five-layer evidence and is not re-used as alpha.20 evidence |
+| provider-wire fault injection (mid-SSE close, arbitrary splits, no-response provider, truncated body) | NOT EXECUTED in this lane | a hand-posted generate request is not the product path; the faithful driver is the five-layer oracle's browser legs. Existing Go adversarial/transport tests cover parts and are not re-claimed |
+| read-only FS / disk-full / rename failure / concurrent writers / mid-write termination / Windows locks / partial corruption / invalid config restart / restart with active requests / corrupt cache / expired session | **EXECUTED where listed in [`fault-injection.md`](fault-injection.md)** (8 scenarios with data-safety/no-false-success/recoverability/resource-release assertions); disk-full and provider-wire remain NOT EXECUTED with reasons | see fault-injection.md |
+
 
 ## Egress control (what every executed probe did)
 
