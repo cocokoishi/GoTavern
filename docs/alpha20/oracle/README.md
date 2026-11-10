@@ -31,11 +31,13 @@ provenance derived from the persisted JSONL bytes), the existing `a19-corpus-bui
 `a19-message-topup.mjs` and `a20-corpus-report.mjs` (target/achieved counts + provenance layers). The corpus
 tree itself stays outside the repository; only the manifest and this report are committed candidates.
 
-**Status: a medium-tier tree was built and counted — see [`corpus-tiers.md`](corpus-tiers.md) for the
-measured counts, the four provenance layers and the disclosed boundary that chats created through the
-product's New Chat function are PRODUCT-NATIVE, not UI-created. The final manifest/report were deferred by
-the Lead's quiet window and are NOT claimed here until they are written.** `pinned-data-template.md` is
-written only when the template provenance probe has run.
+**Status: the medium tier is BUILT, FINALIZED AND COUNTED — all targets reached.** See
+[`corpus-tiers.md`](corpus-tiers.md) for the frozen digests, the measured counts, the four provenance layers,
+the Tavern Helper evidence (including one recorded live version-check egress) and the disclosed boundary that
+chats created through the product's New Chat function are PRODUCT-NATIVE, not UI-created. Committed artifacts:
+[`corpus-medium-manifest.json`](corpus-medium-manifest.json) and
+[`corpus-medium-report.json`](corpus-medium-report.json). `pinned-data-template.md` is written only when the
+template provenance probe has run.
 
 ## Oracle strengthening (M3)
 

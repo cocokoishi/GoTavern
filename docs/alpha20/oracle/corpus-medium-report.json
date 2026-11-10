@@ -1,0 +1,2292 @@
+{
+  "schema": "a20-corpus-report-v1",
+  "kind": "a20-multi-tier-corpus-report",
+  "tier": "medium",
+  "generatedAt": "2026-11-10T02:58:44.580Z",
+  "pinned": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "manifest": {
+    "file": "manifest.json",
+    "schema": "a19-corpus-manifest-v1",
+    "treeSha256": "d6f7d7f75fa84b7997c935cc5dfa67945c78aa05d5b2e7cb287ff05d2e774bd3",
+    "files": 1533,
+    "bytes": 50615571
+  },
+  "targets": [
+    {
+      "category": "characters",
+      "target": 64,
+      "achieved": 64,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 1,
+      "note": null
+    },
+    {
+      "category": "worlds",
+      "target": 12,
+      "achieved": 12,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 1,
+      "note": null
+    },
+    {
+      "category": "worldEntries",
+      "target": 200,
+      "achieved": 229,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 4,
+      "note": "created entries only; the seeded Eldoria book has 4 entries and is excluded from `achieved`"
+    },
+    {
+      "category": "presets",
+      "target": 20,
+      "achieved": 20,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 92,
+      "note": null
+    },
+    {
+      "category": "chats",
+      "target": 100,
+      "achieved": 163,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 0,
+      "note": null
+    },
+    {
+      "category": "messages",
+      "target": 3000,
+      "achieved": 3000,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 0,
+      "note": null
+    },
+    {
+      "category": "groups",
+      "target": 8,
+      "achieved": 8,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 0,
+      "note": null
+    },
+    {
+      "category": "personas",
+      "target": 2,
+      "achieved": 3,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 0,
+      "note": null
+    },
+    {
+      "category": "quickReplies",
+      "target": 2,
+      "achieved": 2,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 1,
+      "note": null
+    },
+    {
+      "category": "regexes",
+      "target": 2,
+      "achieved": 2,
+      "reached": true,
+      "shortfall": 0,
+      "seededNotCounted": 0,
+      "note": null
+    }
+  ],
+  "reachedAllTargets": true,
+  "boundary": null,
+  "provenance": {
+    "uiCreated": {
+      "source": "manifest.counts minus manifest.seeded (the pinned fresh-install baseline is measured, not assumed)",
+      "counts": {
+        "characters": 64,
+        "worlds": 12,
+        "worldEntries": 229,
+        "presets": 20,
+        "chats": 163,
+        "messages": 3000,
+        "groups": 8,
+        "personas": 3,
+        "themes": 1,
+        "quickReplies": 2,
+        "regexes": 2,
+        "extensions": 1
+      },
+      "seeded": {
+        "characters": 1,
+        "worlds": 1,
+        "worldEntries": 4,
+        "presets": 92,
+        "chats": 0,
+        "messages": 0,
+        "groups": 0,
+        "personas": 0,
+        "themes": 5,
+        "quickReplies": 1,
+        "regexes": 0,
+        "extensions": 0
+      },
+      "note": "every resource here was produced by a real UI control or by the frontend module function behind that control; the input files the controls consumed are listed under generatedStressOnly"
+    },
+    "uiInteracted": {
+      "source": "round reports: one recorded step per real control interaction",
+      "steps": 0,
+      "failures": []
+    },
+    "productNativeSave": {
+      "source": "a20-corpus-provenance.mjs: derived from the persisted JSONL bytes (markers), not from a builder log",
+      "viaUiTurns": 10,
+      "viaProductSavePath": 2826,
+      "viaProductNativeChat": 164,
+      "uiTurnPairs": 5,
+      "totalMessages": 3000,
+      "method": "derived from the persisted JSONL bytes: product-save-path marker, UI-turn marker (user + the assistant reply directly following it), and the remaining assistant messages the product writes when its New Chat function creates a chat with the character greeting.",
+      "disclosedCounts": {
+        "uiTurnMessages": "5 real sends through #send_textarea/#send_but (the bounded sample); each successful turn persists 2 messages",
+        "productSavePathMessages": "appended to the page chat model and persisted by the product own saveChatConditional; NOT UI turns",
+        "productNativeChatMessages": "the character greeting(s) written by the product when a chat is created; NOT a send and NOT a save-path fill"
+      },
+      "manifestCrossCheck": {
+        "viaUiTurns": 3000,
+        "viaProductSavePath": 0,
+        "basis": "persisted chat+group-chat JSONL user+assistant records; the product-save-path share is disclosed by the run that produced it"
+      },
+      "messageTopupReport": null,
+      "note": "messages appended to the page chat model and persisted through the product own save (saveChatConditional) are NOT UI turns; they are disclosed separately and were never hand-written JSONL"
+    },
+    "generatedStressOnly": {
+      "source": "driver-generated input files consumed by UI import controls",
+      "note": "cards (PNG), world books (JSON), presets (JSON), backgrounds/themes; they are inputs, never counted as created product resources",
+      "examples": [
+        "writeCardPng",
+        "writeWorldJson",
+        "writePresetFile",
+        "writeThemeFile",
+        "writePng"
+      ]
+    },
+    "chatCreation": {
+      "source": "fill action log + manifest chat count",
+      "uiControlChatActions": 6,
+      "productFunctionNewChatCalls": 90,
+      "chatsOnDisk": 163,
+      "attribution": "UI-control-created and product-function-created chats are recorded separately; the disk count is the sum measured by the manifest, and the difference between the recorded actions and the disk count is NOT attributed to a behaviour this probe instrumented (a New Chat call can also persist the outgoing chat), so it is disclosed as a boundary.",
+      "unexplainedChatFiles": 67
+    },
+    "extensions": {
+      "source": "a19-corpus-gapfill.mjs against this corpus (through the pinned wrapper)",
+      "countsBefore": {
+        "characters": 64,
+        "worlds": 12,
+        "worldEntries": 212,
+        "presets": 20,
+        "chats": 163,
+        "messages": 2837,
+        "groups": 8,
+        "themes": 6,
+        "backgrounds": 24,
+        "quickReplies": 3,
+        "personas": 3,
+        "regexes": 2
+      },
+      "countsAfter": {
+        "characters": 65,
+        "worlds": 12,
+        "worldEntries": 213,
+        "presets": 20,
+        "chats": 163,
+        "messages": 2840,
+        "groups": 8,
+        "themes": 6,
+        "backgrounds": 24,
+        "quickReplies": 3,
+        "personas": 3,
+        "regexes": 2
+      },
+      "extension": {
+        "settingsBefore": [],
+        "toggle": {
+          "found": false
+        },
+        "apiPresent": true,
+        "apiKeys": [
+          "_th_impl",
+          "_bind",
+          "audioEnable",
+          "audioImport",
+          "audioMode",
+          "audioPlay",
+          "audioSelect",
+          "playAudio",
+          "pauseAudio",
+          "getAudioList",
+          "replaceAudioList",
+          "appendAudioList",
+          "getAudioSettings",
+          "setAudioSettings",
+          "getCurrentAudio",
+          "builtin",
+          "getCharacterNames",
+          "getCharacterIds",
+          "getCurrentCharacterName",
+          "getCurrentCharacterId",
+          "createCharacter",
+          "createOrReplaceCharacter",
+          "deleteCharacter",
+          "getCharacter",
+          "replaceCharacter",
+          "updateCharacterWith",
+          "getChatMessages",
+          "setChatMessages",
+          "setChatMessage",
+          "createChatMessages",
+          "deleteChatMessages",
+          "rotateChatMessages",
+          "formatAsDisplayedMessage",
+          "retrieveDisplayedMessage",
+          "refreshOneMessage",
+          "tavern_events",
+          "iframe_events",
+          "isAdmin",
+          "getTavernHelperExtensionId",
+          "getExtensionType",
+          "getExtensionStatus",
+          "isInstalledExtension",
+          "installExtension",
+          "uninstallExtension",
+          "reinstallExtension",
+          "updateExtension",
+          "importRawCharacter",
+          "importRawPreset",
+          "importRawChat",
+          "importRawWorldbook",
+          "importRawTavernRegex",
+          "injectPrompts",
+          "uninjectPrompts",
+          "builtin_prompt_default_order",
+          "getModelList",
+          "getProxyPresetNames",
+          "generate",
+          "generateRaw",
+          "stopGenerationById",
+          "stopAllGeneration",
+          "initializeGlobal",
+          "waitGlobalInitialized",
+          "getLorebookEntries",
+          "replaceLorebookEntries",
+          "updateLorebookEntriesWith",
+          "setLorebookEntries",
+          "createLorebookEntries",
+          "createLorebookEntry",
+          "deleteLorebookEntries",
+          "deleteLorebookEntry",
+          "getLorebookSettings",
+          "setLorebookSettings",
+          "getCharLorebooks",
+          "setCurrentCharLorebooks",
+          "getLorebooks",
+          "deleteLorebook",
+          "createLorebook",
+          "getCurrentCharPrimaryLorebook",
+          "getChatLorebook",
+          "setChatLorebook"
+        ],
+        "state": null,
+        "variableRoundTrip": {
+          "chat": null,
+          "before": {},
+          "after": {
+            "A19_GAPFILL_VAR": "gapfill-1794277388903"
+          }
+        },
+        "iframes": [],
+        "helperSettings": {},
+        "helperRequests": [
+          {
+            "url": "<base>/scripts/extensions/third-party/JS-Slash-Runner/manifest.json",
+            "status": 200
+          },
+          {
+            "url": "<base>/scripts/extensions/third-party/JS-Slash-Runner/dist/index.css",
+            "status": 200
+          },
+          {
+            "url": "<base>/scripts/extensions/third-party/JS-Slash-Runner/dist/index.js",
+            "status": 200
+          },
+          {
+            "url": "<base>/scripts/extensions/third-party/JS-Slash-Runner/lib/jsoneditor.js",
+            "status": 200
+          },
+          {
+            "url": "https://gitlab.com/api/v4/projects/novi028%2FJS-Slash-Runner/repository/files/manifest.json/raw?ref=main",
+            "status": 200
+          }
+        ]
+      },
+      "verbs": [
+        {
+          "chat": "chats\\A19R1 Glass Garden 2\\A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms.jsonl",
+          "opened": true,
+          "resumed": {
+            "ok": true,
+            "chatId": "A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms",
+            "chatLength": 259
+          },
+          "turnOk": true,
+          "swipe": {
+            "ok": true,
+            "before": {
+              "chatLength": 261,
+              "lastIsUser": false,
+              "lastText": "R1 short reply.",
+              "swipeId": 0
+            },
+            "after": {
+              "chatLength": 261,
+              "lastText": "R2 plain two-line reply.\nSecond line of R2.",
+              "swipeId": 1,
+              "swipes": 2,
+              "isSendPress": false
+            }
+          },
+          "regenerate": {
+            "pressed": true,
+            "before": {
+              "menuPresent": true,
+              "buttonPresent": true,
+              "controlFound": true,
+              "chatLength": 261,
+              "thisEditMesId": null,
+              "lastIsUser": false,
+              "isSendPress": false,
+              "streamingProcessor": false,
+              "lastMessage": {
+                "mes": "R2 plain two-line reply.\nSecond line of R2.",
+                "swipe_id": 1,
+                "swipes": [
+                  "R1 short reply.",
+                  "R2 plain two-line reply.\nSecond line of R2."
+                ],
+                "send_date": "2026-11-10T02:23:35.546Z",
+                "name": "A19R1 Glass Garden 2"
+              }
+            },
+            "menuVisible": false,
+            "generateCalls": [],
+            "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+            "sawRegenerateCall": false,
+            "sawBusy": true,
+            "after": {
+              "chatLength": 261,
+              "lastIsUser": false,
+              "lastText": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。",
+              "lastMessage": {
+                "mes": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。",
+                "swipe_id": 0,
+                "swipes": [
+                  "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。"
+                ],
+                "send_date": "2026-11-10T02:23:39.401Z",
+                "name": "A19R1 Glass Garden 2"
+              }
+            }
+          },
+          "continue": {
+            "pressed": true,
+            "before": {
+              "menuPresent": true,
+              "controlFound": true,
+              "messageControlFound": true,
+              "chatLength": 261,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms",
+              "thisEditMesId": null,
+              "swipeEditing": "none",
+              "isSendPress": false,
+              "streamingProcessor": false,
+              "lastIsUser": false,
+              "lastMessage": {
+                "mes": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。",
+                "swipe_id": 0,
+                "swipes": [
+                  "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。"
+                ],
+                "send_date": "2026-11-10T02:23:39.401Z",
+                "name": "A19R1 Glass Garden 2",
+                "extra": {
+                  "api": "custom",
+                  "model": "a19-live-model",
+                  "reasoning": "",
+                  "reasoning_duration": null,
+                  "reasoning_signature": null
+                }
+              }
+            },
+            "menuVisible": false,
+            "generateCalls": [],
+            "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+            "sawContinueCall": false,
+            "sawBusy": true,
+            "after": {
+              "chatLength": 261,
+              "lastIsUser": false,
+              "lastText": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。",
+              "lastMessage": {
+                "mes": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。",
+                "swipe_id": 0,
+                "swipes": [
+                  "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。"
+                ],
+                "send_date": "2026-11-10T02:24:10.456Z",
+                "name": "A19R1 Glass Garden 2",
+                "extra": {
+                  "api": "custom",
+                  "model": "a19-live-model",
+                  "reasoning": "",
+                  "reasoning_duration": null,
+                  "reasoning_signature": null
+                }
+              },
+              "domMessageCount": 100,
+              "domLastText": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。"
+            }
+          },
+          "edit": {
+            "ok": false,
+            "reason": "last message node missing"
+          },
+          "delete": {
+            "ok": true,
+            "before": 261,
+            "after": 260
+          },
+          "reopen": {
+            "ok": true,
+            "chatId": "A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms",
+            "chatLength": 260
+          }
+        },
+        {
+          "chat": "chats\\A19R1 Glass Garden 2\\A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms.jsonl",
+          "opened": true,
+          "resumed": {
+            "ok": true,
+            "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms",
+            "chatLength": 23
+          },
+          "turnOk": true,
+          "swipe": {
+            "ok": true,
+            "before": {
+              "chatLength": 25,
+              "lastIsUser": false,
+              "lastText": "R5 emoji reply 🌙✨🐈‍⬛ and a trailing thought.",
+              "swipeId": 0
+            },
+            "after": {
+              "chatLength": 25,
+              "lastText": "R6 markdown reply.\n\n- item *one*\n- item `two`\n\n> quoted line for R6",
+              "swipeId": 1,
+              "swipes": 2,
+              "isSendPress": false
+            }
+          },
+          "regenerate": {
+            "pressed": true,
+            "before": {
+              "menuPresent": true,
+              "buttonPresent": true,
+              "controlFound": true,
+              "chatLength": 25,
+              "thisEditMesId": null,
+              "lastIsUser": false,
+              "isSendPress": false,
+              "streamingProcessor": false,
+              "lastMessage": {
+                "mes": "R6 markdown reply.\n\n- item *one*\n- item `two`\n\n> quoted line for R6",
+                "swipe_id": 1,
+                "swipes": [
+                  "R5 emoji reply 🌙✨🐈‍⬛ and a trailing thought.",
+                  "R6 markdown reply.\n\n- item *one*\n- item `two`\n\n> quoted line for R6"
+                ],
+                "send_date": "2026-11-10T02:24:28.840Z",
+                "name": "A19R1 Glass Garden 2"
+              }
+            },
+            "menuVisible": false,
+            "generateCalls": [],
+            "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+            "sawRegenerateCall": false,
+            "sawBusy": true,
+            "after": {
+              "chatLength": 25,
+              "lastIsUser": false,
+              "lastText": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard whil",
+              "lastMessage": {
+                "mes": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm.",
+                "swipe_id": 0,
+                "swipes": [
+                  "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm."
+                ],
+                "send_date": "2026-11-10T02:24:31.477Z",
+                "name": "A19R1 Glass Garden 2"
+              }
+            }
+          },
+          "continue": {
+            "pressed": true,
+            "before": {
+              "menuPresent": true,
+              "controlFound": true,
+              "messageControlFound": true,
+              "chatLength": 25,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms",
+              "thisEditMesId": null,
+              "swipeEditing": "none",
+              "isSendPress": false,
+              "streamingProcessor": false,
+              "lastIsUser": false,
+              "lastMessage": {
+                "mes": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm.",
+                "swipe_id": 0,
+                "swipes": [
+                  "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm."
+                ],
+                "send_date": "2026-11-10T02:24:31.477Z",
+                "name": "A19R1 Glass Garden 2",
+                "extra": {
+                  "api": "custom",
+                  "model": "a19-live-model",
+                  "reasoning": "",
+                  "reasoning_duration": null,
+                  "reasoning_signature": null
+                }
+              }
+            },
+            "menuVisible": false,
+            "generateCalls": [],
+            "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+            "sawContinueCall": false,
+            "sawBusy": true,
+            "after": {
+              "chatLength": 25,
+              "lastIsUser": false,
+              "lastText": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. R8 escaped-ish text: quotes \"like this\", backslash \\, braces {curly}, brackets [square].",
+              "lastMessage": {
+                "mes": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. R8 escaped-ish text: quotes \"like this\", backslash \\, braces {curly}, brackets [square].",
+                "swipe_id": 0,
+                "swipes": [
+                  "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. R8 escaped-ish text: quotes \"like this\", backslash \\, braces {curly}, brackets [square]."
+                ],
+                "send_date": "2026-11-10T02:25:02.149Z",
+                "name": "A19R1 Glass Garden 2",
+                "extra": {
+                  "api": "custom",
+                  "model": "a19-live-model",
+                  "reasoning": "",
+                  "reasoning_duration": null,
+                  "reasoning_signature": null
+                }
+              },
+              "domMessageCount": 25,
+              "domLastText": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard "
+            }
+          },
+          "edit": {
+            "ok": true,
+            "replacement": "A19 GAPFILL EDITED 1 编辑 ✍️",
+            "observedLength": 26
+          },
+          "delete": {
+            "ok": true,
+            "before": 25,
+            "after": 24
+          },
+          "reopen": {
+            "ok": true,
+            "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms",
+            "chatLength": 24
+          }
+        },
+        {
+          "chat": "chats\\A19R1 Glass Garden 2\\A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms.jsonl",
+          "opened": true,
+          "resumed": {
+            "ok": true,
+            "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms",
+            "chatLength": 21
+          },
+          "turnOk": true,
+          "swipe": {
+            "ok": true,
+            "before": {
+              "chatLength": 23,
+              "lastIsUser": false,
+              "lastText": "R9 mixed 中文 English 日本語 emoji 🧭🎴 and accents café naïve résumé.",
+              "swipeId": 0
+            },
+            "after": {
+              "chatLength": 23,
+              "lastText": "R10 list of names: Alice, 鲍勃, キャロル, Δημήτρης, محمد.",
+              "swipeId": 1,
+              "swipes": 2,
+              "isSendPress": false
+            }
+          },
+          "regenerate": {
+            "pressed": true,
+            "before": {
+              "menuPresent": true,
+              "buttonPresent": true,
+              "controlFound": true,
+              "chatLength": 23,
+              "thisEditMesId": null,
+              "lastIsUser": false,
+              "isSendPress": false,
+              "streamingProcessor": false,
+              "lastMessage": {
+                "mes": "R10 list of names: Alice, 鲍勃, キャロル, Δημήτρης, محمد.",
+                "swipe_id": 1,
+                "swipes": [
+                  "R9 mixed 中文 English 日本語 emoji 🧭🎴 and accents café naïve résumé.",
+                  "R10 list of names: Alice, 鲍勃, キャロル, Δημήτρης, محمد."
+                ],
+                "send_date": "2026-11-10T02:25:19.268Z",
+                "name": "A19R1 Glass Garden 2"
+              }
+            },
+            "menuVisible": false,
+            "generateCalls": [],
+            "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+            "sawRegenerateCall": false,
+            "sawBusy": true,
+            "after": {
+              "chatLength": 23,
+              "lastIsUser": false,
+              "lastText": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with eve",
+              "lastMessage": {
+                "mes": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it.",
+                "swipe_id": 0,
+                "swipes": [
+                  "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it."
+                ],
+                "send_date": "2026-11-10T02:25:21.705Z",
+                "name": "A19R1 Glass Garden 2"
+              }
+            }
+          },
+          "continue": {
+            "pressed": true,
+            "before": {
+              "menuPresent": true,
+              "controlFound": true,
+              "messageControlFound": true,
+              "chatLength": 23,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms",
+              "thisEditMesId": null,
+              "swipeEditing": "none",
+              "isSendPress": false,
+              "streamingProcessor": false,
+              "lastIsUser": false,
+              "lastMessage": {
+                "mes": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it.",
+                "swipe_id": 0,
+                "swipes": [
+                  "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it."
+                ],
+                "send_date": "2026-11-10T02:25:21.705Z",
+                "name": "A19R1 Glass Garden 2",
+                "extra": {
+                  "api": "custom",
+                  "model": "a19-live-model",
+                  "reasoning": "",
+                  "reasoning_duration": null,
+                  "reasoning_signature": null
+                }
+              }
+            },
+            "menuVisible": false,
+            "generateCalls": [],
+            "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+            "sawContinueCall": false,
+            "sawBusy": true,
+            "after": {
+              "chatLength": 23,
+              "lastIsUser": false,
+              "lastText": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。",
+              "lastMessage": {
+                "mes": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。",
+                "swipe_id": 0,
+                "swipes": [
+                  "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。"
+                ],
+                "send_date": "2026-11-10T02:25:52.249Z",
+                "name": "A19R1 Glass Garden 2",
+                "extra": {
+                  "api": "custom",
+                  "model": "a19-live-model",
+                  "reasoning": "",
+                  "reasoning_duration": null,
+                  "reasoning_signature": null
+                }
+              },
+              "domMessageCount": 23,
+              "domLastText": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。"
+            }
+          },
+          "edit": {
+            "ok": true,
+            "replacement": "A19 GAPFILL EDITED 2 编辑 ✍️",
+            "observedLength": 26
+          },
+          "delete": {
+            "ok": true,
+            "before": 23,
+            "after": 22
+          },
+          "reopen": {
+            "ok": true,
+            "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms",
+            "chatLength": 22
+          }
+        }
+      ],
+      "steps": [
+        {
+          "name": "page-loaded",
+          "ok": true,
+          "detail": {
+            "settingsReady": true,
+            "appReady": true,
+            "viaFallback": false,
+            "subscribed": true
+          },
+          "at": "2026-11-10T02:22:54.560Z"
+        },
+        {
+          "name": "connection",
+          "ok": true,
+          "detail": {
+            "state": {
+              "mainApi": "openai",
+              "source": "custom",
+              "url": "http://127.0.0.1:58242/v1",
+              "model": "a19-live-model",
+              "streaming": false
+            }
+          },
+          "at": "2026-11-10T02:22:56.042Z"
+        },
+        {
+          "name": "card-imported-r3-0",
+          "ok": true,
+          "detail": {
+            "ok": true,
+            "before": 64,
+            "after": 65,
+            "file": "a19-card-r3-s70-0.png",
+            "cardName": "A19R3I 烟雨客栈 71"
+          },
+          "at": "2026-11-10T02:22:58.923Z"
+        },
+        {
+          "name": "gap-card-imported",
+          "ok": true,
+          "detail": [
+            {
+              "name": "A19R3I 烟雨客栈 71",
+              "file": "a19-card-r3-s70-0.png"
+            }
+          ],
+          "at": "2026-11-10T02:22:58.923Z"
+        },
+        {
+          "name": "gap-world-editor-opened",
+          "ok": true,
+          "detail": {
+            "world": "a19-world-r1-s0-0",
+            "editor": {
+              "ok": true,
+              "selected": true,
+              "rendered": true,
+              "index": 0,
+              "names": [
+                "a19-world-r1-s0-0",
+                "a19-world-r1-s0-1",
+                "a19-world-r1-s0-2",
+                "a19-world-r90-s1000-0",
+                "a19-world-r90-s1000-1",
+                "a19-world-r90-s1000-2",
+                "a19-world-r90-s1000-3",
+                "a19-world-r90-s1000-4",
+                "a19-world-r90-s1000-5",
+                "a19-world-r90-s1000-6",
+                "A19R1 Lore 1 星海図書館",
+                "Eldoria"
+              ]
+            }
+          },
+          "at": "2026-11-10T02:22:59.078Z"
+        },
+        {
+          "name": "gap-world-entries",
+          "ok": true,
+          "detail": {
+            "world": "a19-world-r1-s0-0",
+            "entriesAdded": 2
+          },
+          "at": "2026-11-10T02:23:07.675Z"
+        },
+        {
+          "name": "extension-loaded",
+          "ok": true,
+          "detail": {
+            "helperLoaded": true,
+            "settingsKeys": []
+          },
+          "at": "2026-11-10T02:23:08.916Z"
+        },
+        {
+          "name": "extension-enabled-through-ui",
+          "ok": false,
+          "detail": {
+            "found": false
+          },
+          "at": "2026-11-10T02:23:08.916Z"
+        },
+        {
+          "name": "extension-api-and-state",
+          "ok": true,
+          "detail": {
+            "apiPresent": true,
+            "apiKeys": [
+              "_th_impl",
+              "_bind",
+              "audioEnable",
+              "audioImport",
+              "audioMode",
+              "audioPlay",
+              "audioSelect",
+              "playAudio",
+              "pauseAudio",
+              "getAudioList",
+              "replaceAudioList",
+              "appendAudioList",
+              "getAudioSettings",
+              "setAudioSettings",
+              "getCurrentAudio",
+              "builtin",
+              "getCharacterNames",
+              "getCharacterIds",
+              "getCurrentCharacterName",
+              "getCurrentCharacterId",
+              "createCharacter",
+              "createOrReplaceCharacter",
+              "deleteCharacter",
+              "getCharacter",
+              "replaceCharacter",
+              "updateCharacterWith",
+              "getChatMessages",
+              "setChatMessages",
+              "setChatMessage",
+              "createChatMessages"
+            ],
+            "helperSettings": {},
+            "variableRoundTrip": {
+              "chat": null,
+              "before": {},
+              "after": {
+                "A19_GAPFILL_VAR": "gapfill-1794277388903"
+              }
+            }
+          },
+          "at": "2026-11-10T02:23:08.916Z"
+        },
+        {
+          "name": "verb-matrix-chat-0",
+          "ok": true,
+          "detail": {
+            "chat": "chats\\A19R1 Glass Garden 2\\A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms.jsonl",
+            "opened": true,
+            "resumed": {
+              "ok": true,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms",
+              "chatLength": 259
+            },
+            "turnOk": true,
+            "swipe": {
+              "ok": true,
+              "before": {
+                "chatLength": 261,
+                "lastIsUser": false,
+                "lastText": "R1 short reply.",
+                "swipeId": 0
+              },
+              "after": {
+                "chatLength": 261,
+                "lastText": "R2 plain two-line reply.\nSecond line of R2.",
+                "swipeId": 1,
+                "swipes": 2,
+                "isSendPress": false
+              }
+            },
+            "regenerate": {
+              "pressed": true,
+              "before": {
+                "menuPresent": true,
+                "buttonPresent": true,
+                "controlFound": true,
+                "chatLength": 261,
+                "thisEditMesId": null,
+                "lastIsUser": false,
+                "isSendPress": false,
+                "streamingProcessor": false,
+                "lastMessage": {
+                  "mes": "R2 plain two-line reply.\nSecond line of R2.",
+                  "swipe_id": 1,
+                  "swipes": [
+                    "R1 short reply.",
+                    "R2 plain two-line reply.\nSecond line of R2."
+                  ],
+                  "send_date": "2026-11-10T02:23:35.546Z",
+                  "name": "A19R1 Glass Garden 2"
+                }
+              },
+              "menuVisible": false,
+              "generateCalls": [],
+              "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+              "sawRegenerateCall": false,
+              "sawBusy": true,
+              "after": {
+                "chatLength": 261,
+                "lastIsUser": false,
+                "lastText": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。",
+                "lastMessage": {
+                  "mes": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。"
+                  ],
+                  "send_date": "2026-11-10T02:23:39.401Z",
+                  "name": "A19R1 Glass Garden 2"
+                }
+              }
+            },
+            "continue": {
+              "pressed": true,
+              "before": {
+                "menuPresent": true,
+                "controlFound": true,
+                "messageControlFound": true,
+                "chatLength": 261,
+                "chatId": "A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms",
+                "thisEditMesId": null,
+                "swipeEditing": "none",
+                "isSendPress": false,
+                "streamingProcessor": false,
+                "lastIsUser": false,
+                "lastMessage": {
+                  "mes": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。"
+                  ],
+                  "send_date": "2026-11-10T02:23:39.401Z",
+                  "name": "A19R1 Glass Garden 2",
+                  "extra": {
+                    "api": "custom",
+                    "model": "a19-live-model",
+                    "reasoning": "",
+                    "reasoning_duration": null,
+                    "reasoning_signature": null
+                  }
+                }
+              },
+              "menuVisible": false,
+              "generateCalls": [],
+              "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+              "sawContinueCall": false,
+              "sawBusy": true,
+              "after": {
+                "chatLength": 261,
+                "lastIsUser": false,
+                "lastText": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。",
+                "lastMessage": {
+                  "mes": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。"
+                  ],
+                  "send_date": "2026-11-10T02:24:10.456Z",
+                  "name": "A19R1 Glass Garden 2",
+                  "extra": {
+                    "api": "custom",
+                    "model": "a19-live-model",
+                    "reasoning": "",
+                    "reasoning_duration": null,
+                    "reasoning_signature": null
+                  }
+                },
+                "domMessageCount": 100,
+                "domLastText": "R3 中文回复：星海旅店的门在午夜后仍开着，老板娘记得每一位来客的名字。 R4 日本語の返答です。古い図書館の地下に、まだ誰も読んでいない本がある。"
+              }
+            },
+            "edit": {
+              "ok": false,
+              "reason": "last message node missing"
+            },
+            "delete": {
+              "ok": true,
+              "before": 261,
+              "after": 260
+            },
+            "reopen": {
+              "ok": true,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@17h47m23s131ms",
+              "chatLength": 260
+            }
+          },
+          "at": "2026-11-10T02:24:18.840Z"
+        },
+        {
+          "name": "verb-matrix-chat-1",
+          "ok": true,
+          "detail": {
+            "chat": "chats\\A19R1 Glass Garden 2\\A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms.jsonl",
+            "opened": true,
+            "resumed": {
+              "ok": true,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms",
+              "chatLength": 23
+            },
+            "turnOk": true,
+            "swipe": {
+              "ok": true,
+              "before": {
+                "chatLength": 25,
+                "lastIsUser": false,
+                "lastText": "R5 emoji reply 🌙✨🐈‍⬛ and a trailing thought.",
+                "swipeId": 0
+              },
+              "after": {
+                "chatLength": 25,
+                "lastText": "R6 markdown reply.\n\n- item *one*\n- item `two`\n\n> quoted line for R6",
+                "swipeId": 1,
+                "swipes": 2,
+                "isSendPress": false
+              }
+            },
+            "regenerate": {
+              "pressed": true,
+              "before": {
+                "menuPresent": true,
+                "buttonPresent": true,
+                "controlFound": true,
+                "chatLength": 25,
+                "thisEditMesId": null,
+                "lastIsUser": false,
+                "isSendPress": false,
+                "streamingProcessor": false,
+                "lastMessage": {
+                  "mes": "R6 markdown reply.\n\n- item *one*\n- item `two`\n\n> quoted line for R6",
+                  "swipe_id": 1,
+                  "swipes": [
+                    "R5 emoji reply 🌙✨🐈‍⬛ and a trailing thought.",
+                    "R6 markdown reply.\n\n- item *one*\n- item `two`\n\n> quoted line for R6"
+                  ],
+                  "send_date": "2026-11-10T02:24:28.840Z",
+                  "name": "A19R1 Glass Garden 2"
+                }
+              },
+              "menuVisible": false,
+              "generateCalls": [],
+              "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+              "sawRegenerateCall": false,
+              "sawBusy": true,
+              "after": {
+                "chatLength": 25,
+                "lastIsUser": false,
+                "lastText": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard whil",
+                "lastMessage": {
+                  "mes": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm.",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm."
+                  ],
+                  "send_date": "2026-11-10T02:24:31.477Z",
+                  "name": "A19R1 Glass Garden 2"
+                }
+              }
+            },
+            "continue": {
+              "pressed": true,
+              "before": {
+                "menuPresent": true,
+                "controlFound": true,
+                "messageControlFound": true,
+                "chatLength": 25,
+                "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms",
+                "thisEditMesId": null,
+                "swipeEditing": "none",
+                "isSendPress": false,
+                "streamingProcessor": false,
+                "lastIsUser": false,
+                "lastMessage": {
+                  "mes": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm.",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm."
+                  ],
+                  "send_date": "2026-11-10T02:24:31.477Z",
+                  "name": "A19R1 Glass Garden 2",
+                  "extra": {
+                    "api": "custom",
+                    "model": "a19-live-model",
+                    "reasoning": "",
+                    "reasoning_duration": null,
+                    "reasoning_signature": null
+                  }
+                }
+              },
+              "menuVisible": false,
+              "generateCalls": [],
+              "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+              "sawContinueCall": false,
+              "sawBusy": true,
+              "after": {
+                "chatLength": 25,
+                "lastIsUser": false,
+                "lastText": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. R8 escaped-ish text: quotes \"like this\", backslash \\, braces {curly}, brackets [square].",
+                "lastMessage": {
+                  "mes": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. R8 escaped-ish text: quotes \"like this\", backslash \\, braces {curly}, brackets [square].",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. R8 escaped-ish text: quotes \"like this\", backslash \\, braces {curly}, brackets [square]."
+                  ],
+                  "send_date": "2026-11-10T02:25:02.149Z",
+                  "name": "A19R1 Glass Garden 2",
+                  "extra": {
+                    "api": "custom",
+                    "model": "a19-live-model",
+                    "reasoning": "",
+                    "reasoning_duration": null,
+                    "reasoning_signature": null
+                  }
+                },
+                "domMessageCount": 25,
+                "domLastText": "R7 long reply. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard while the rain kept its own slow rhythm. The lantern lit the courtyard "
+              }
+            },
+            "edit": {
+              "ok": true,
+              "replacement": "A19 GAPFILL EDITED 1 编辑 ✍️",
+              "observedLength": 26
+            },
+            "delete": {
+              "ok": true,
+              "before": 25,
+              "after": 24
+            },
+            "reopen": {
+              "ok": true,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h02m14s310ms",
+              "chatLength": 24
+            }
+          },
+          "at": "2026-11-10T02:25:08.347Z"
+        },
+        {
+          "name": "verb-matrix-chat-2",
+          "ok": true,
+          "detail": {
+            "chat": "chats\\A19R1 Glass Garden 2\\A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms.jsonl",
+            "opened": true,
+            "resumed": {
+              "ok": true,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms",
+              "chatLength": 21
+            },
+            "turnOk": true,
+            "swipe": {
+              "ok": true,
+              "before": {
+                "chatLength": 23,
+                "lastIsUser": false,
+                "lastText": "R9 mixed 中文 English 日本語 emoji 🧭🎴 and accents café naïve résumé.",
+                "swipeId": 0
+              },
+              "after": {
+                "chatLength": 23,
+                "lastText": "R10 list of names: Alice, 鲍勃, キャロル, Δημήτρης, محمد.",
+                "swipeId": 1,
+                "swipes": 2,
+                "isSendPress": false
+              }
+            },
+            "regenerate": {
+              "pressed": true,
+              "before": {
+                "menuPresent": true,
+                "buttonPresent": true,
+                "controlFound": true,
+                "chatLength": 23,
+                "thisEditMesId": null,
+                "lastIsUser": false,
+                "isSendPress": false,
+                "streamingProcessor": false,
+                "lastMessage": {
+                  "mes": "R10 list of names: Alice, 鲍勃, キャロル, Δημήτρης, محمد.",
+                  "swipe_id": 1,
+                  "swipes": [
+                    "R9 mixed 中文 English 日本語 emoji 🧭🎴 and accents café naïve résumé.",
+                    "R10 list of names: Alice, 鲍勃, キャロル, Δημήτρης, محمد."
+                  ],
+                  "send_date": "2026-11-10T02:25:19.268Z",
+                  "name": "A19R1 Glass Garden 2"
+                }
+              },
+              "menuVisible": false,
+              "generateCalls": [],
+              "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+              "sawRegenerateCall": false,
+              "sawBusy": true,
+              "after": {
+                "chatLength": 23,
+                "lastIsUser": false,
+                "lastText": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with eve",
+                "lastMessage": {
+                  "mes": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it.",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it."
+                  ],
+                  "send_date": "2026-11-10T02:25:21.705Z",
+                  "name": "A19R1 Glass Garden 2"
+                }
+              }
+            },
+            "continue": {
+              "pressed": true,
+              "before": {
+                "menuPresent": true,
+                "controlFound": true,
+                "messageControlFound": true,
+                "chatLength": 23,
+                "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms",
+                "thisEditMesId": null,
+                "swipeEditing": "none",
+                "isSendPress": false,
+                "streamingProcessor": false,
+                "lastIsUser": false,
+                "lastMessage": {
+                  "mes": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it.",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it."
+                  ],
+                  "send_date": "2026-11-10T02:25:21.705Z",
+                  "name": "A19R1 Glass Garden 2",
+                  "extra": {
+                    "api": "custom",
+                    "model": "a19-live-model",
+                    "reasoning": "",
+                    "reasoning_duration": null,
+                    "reasoning_signature": null
+                  }
+                }
+              },
+              "menuVisible": false,
+              "generateCalls": [],
+              "generateWrapStatus": "defineProperty-threw: Cannot redefine property: Generate",
+              "sawContinueCall": false,
+              "sawBusy": true,
+              "after": {
+                "chatLength": 23,
+                "lastIsUser": false,
+                "lastText": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。",
+                "lastMessage": {
+                  "mes": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。",
+                  "swipe_id": 0,
+                  "swipes": [
+                    "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。"
+                  ],
+                  "send_date": "2026-11-10T02:25:52.249Z",
+                  "name": "A19R1 Glass Garden 2",
+                  "extra": {
+                    "api": "custom",
+                    "model": "a19-live-model",
+                    "reasoning": "",
+                    "reasoning_duration": null,
+                    "reasoning_signature": null
+                  }
+                },
+                "domMessageCount": 23,
+                "domLastText": "R11 a medium reply that keeps going for a sentence or two so the chat has body. The clock in the hall disagreed with every guest, and nobody had the heart to fix it. R12 📚 World note: the orchard behind the inn bears fruit only when someone tells the truth. 果园的果子只在有人说真话时结果。"
+              }
+            },
+            "edit": {
+              "ok": true,
+              "replacement": "A19 GAPFILL EDITED 2 编辑 ✍️",
+              "observedLength": 26
+            },
+            "delete": {
+              "ok": true,
+              "before": 23,
+              "after": 22
+            },
+            "reopen": {
+              "ok": true,
+              "chatId": "A19R1 Glass Garden 2 - 2026-11-09@18h10m27s334ms",
+              "chatLength": 22
+            }
+          },
+          "at": "2026-11-10T02:25:58.911Z"
+        }
+      ]
+    }
+  },
+  "determinism": {
+    "seed": "deterministic-recording-peer",
+    "replay": "the driver skips resources that already exist, so a re-run over the same tree is an idempotent replay; a fresh tier run starts from a fresh data root and the manifest digest pins the result",
+    "actionLogs": {
+      "files": [
+        "actions-round1.jsonl",
+        "actions-a20-topup.jsonl",
+        "actions-a20-topup2.jsonl",
+        "actions-a20-topup3.jsonl",
+        "actions-a20-fill.jsonl",
+        "actions-a20-catchup.jsonl",
+        "actions-a20-catchup2.jsonl",
+        "actions-gapfill.jsonl"
+      ],
+      "records": 282
+    }
+  },
+  "tierEvidence": {
+    "roundReports": [],
+    "topup": {
+      "runs": [
+        {
+          "file": "a20-topup.json",
+          "targets": {
+            "cards": 64,
+            "worlds": 12,
+            "worldEntries": 20,
+            "presets": 20,
+            "groups": 8
+          },
+          "created": {
+            "cards": 38,
+            "worlds": 7,
+            "worldEntries": 140,
+            "presets": 16,
+            "groups": 8
+          },
+          "measured": {
+            "before": {
+              "cards": 26,
+              "worlds": 5,
+              "presets": 4,
+              "groups": 0
+            },
+            "cardShortfall": 38,
+            "worldShortfall": 7,
+            "presetShortfall": 16,
+            "groupShortfall": 8,
+            "after": {
+              "cards": 64,
+              "worlds": 12,
+              "presets": 20,
+              "groups": 8
+            }
+          },
+          "steps": [
+            {
+              "name": "page-and-connection",
+              "ok": true,
+              "detail": {
+                "readiness": {
+                  "settingsReady": true,
+                  "appReady": true,
+                  "viaFallback": false,
+                  "subscribed": true
+                },
+                "connection": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "url": "http://127.0.0.1:60681/v1",
+                  "model": "a20-live-model",
+                  "streaming": false
+                }
+              }
+            },
+            {
+              "name": "card-imported-r90-0",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 26,
+                "after": 27,
+                "file": "a19-card-r90-s1000-0.png",
+                "cardName": "A19R90I 烟雨客栈 1001"
+              }
+            },
+            {
+              "name": "card-imported-r90-1",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 27,
+                "after": 28,
+                "file": "a19-card-r90-s1000-1.png",
+                "cardName": "A19R90I 星海図書館 1002"
+              }
+            },
+            {
+              "name": "card-imported-r90-2",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 28,
+                "after": 29,
+                "file": "a19-card-r90-s1000-2.png",
+                "cardName": "A19R90I EmberForge 1003"
+              }
+            },
+            {
+              "name": "card-imported-r90-3",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 29,
+                "after": 30,
+                "file": "a19-card-r90-s1000-3.png",
+                "cardName": "A19R90I Orchard of Whispers 1004"
+              }
+            },
+            {
+              "name": "card-imported-r90-4",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 30,
+                "after": 31,
+                "file": "a19-card-r90-s1000-4.png",
+                "cardName": "A19R90I 終電の駅 1005"
+              }
+            },
+            {
+              "name": "card-imported-r90-5",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 31,
+                "after": 32,
+                "file": "a19-card-r90-s1000-5.png",
+                "cardName": "A19R90I 砂の市場 1006"
+              }
+            },
+            {
+              "name": "card-imported-r90-6",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 32,
+                "after": 33,
+                "file": "a19-card-r90-s1000-6.png",
+                "cardName": "A19R90I Observatory Nine 1007"
+              }
+            },
+            {
+              "name": "card-imported-r90-7",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 33,
+                "after": 34,
+                "file": "a19-card-r90-s1000-7.png",
+                "cardName": "A19R90I 深夜食堂 1008"
+              }
+            },
+            {
+              "name": "card-imported-r90-8",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 34,
+                "after": 35,
+                "file": "a19-card-r90-s1000-8.png",
+                "cardName": "A19R90I Glass Garden 1009"
+              }
+            },
+            {
+              "name": "card-imported-r90-9",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 35,
+                "after": 36,
+                "file": "a19-card-r90-s1000-9.png",
+                "cardName": "A19R90I The Quiet Archive 1010"
+              }
+            },
+            {
+              "name": "card-imported-r90-10",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 36,
+                "after": 37,
+                "file": "a19-card-r90-s1000-10.png",
+                "cardName": "A19R90I 烟雨客栈 1011"
+              }
+            },
+            {
+              "name": "card-imported-r90-11",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 37,
+                "after": 38,
+                "file": "a19-card-r90-s1000-11.png",
+                "cardName": "A19R90I 星海図書館 1012"
+              }
+            },
+            {
+              "name": "card-imported-r90-12",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 38,
+                "after": 39,
+                "file": "a19-card-r90-s1000-12.png",
+                "cardName": "A19R90I EmberForge 1013"
+              }
+            },
+            {
+              "name": "card-imported-r90-13",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 39,
+                "after": 40,
+                "file": "a19-card-r90-s1000-13.png",
+                "cardName": "A19R90I Orchard of Whispers 1014"
+              }
+            },
+            {
+              "name": "card-imported-r90-14",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 40,
+                "after": 41,
+                "file": "a19-card-r90-s1000-14.png",
+                "cardName": "A19R90I 終電の駅 1015"
+              }
+            },
+            {
+              "name": "card-imported-r90-15",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 41,
+                "after": 42,
+                "file": "a19-card-r90-s1000-15.png",
+                "cardName": "A19R90I 砂の市場 1016"
+              }
+            },
+            {
+              "name": "card-imported-r90-16",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 42,
+                "after": 43,
+                "file": "a19-card-r90-s1000-16.png",
+                "cardName": "A19R90I Observatory Nine 1017"
+              }
+            },
+            {
+              "name": "card-imported-r90-17",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 43,
+                "after": 44,
+                "file": "a19-card-r90-s1000-17.png",
+                "cardName": "A19R90I 深夜食堂 1018"
+              }
+            },
+            {
+              "name": "card-imported-r90-18",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 44,
+                "after": 45,
+                "file": "a19-card-r90-s1000-18.png",
+                "cardName": "A19R90I Glass Garden 1019"
+              }
+            },
+            {
+              "name": "card-imported-r90-19",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 45,
+                "after": 46,
+                "file": "a19-card-r90-s1000-19.png",
+                "cardName": "A19R90I The Quiet Archive 1020"
+              }
+            },
+            {
+              "name": "card-imported-r90-20",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 46,
+                "after": 47,
+                "file": "a19-card-r90-s1000-20.png",
+                "cardName": "A19R90I 烟雨客栈 1021"
+              }
+            },
+            {
+              "name": "card-imported-r90-21",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 47,
+                "after": 48,
+                "file": "a19-card-r90-s1000-21.png",
+                "cardName": "A19R90I 星海図書館 1022"
+              }
+            },
+            {
+              "name": "card-imported-r90-22",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 48,
+                "after": 49,
+                "file": "a19-card-r90-s1000-22.png",
+                "cardName": "A19R90I EmberForge 1023"
+              }
+            },
+            {
+              "name": "card-imported-r90-23",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 49,
+                "after": 50,
+                "file": "a19-card-r90-s1000-23.png",
+                "cardName": "A19R90I Orchard of Whispers 1024"
+              }
+            },
+            {
+              "name": "card-imported-r90-24",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 50,
+                "after": 51,
+                "file": "a19-card-r90-s1000-24.png",
+                "cardName": "A19R90I 終電の駅 1025"
+              }
+            },
+            {
+              "name": "card-imported-r90-25",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 51,
+                "after": 52,
+                "file": "a19-card-r90-s1000-25.png",
+                "cardName": "A19R90I 砂の市場 1026"
+              }
+            },
+            {
+              "name": "card-imported-r90-26",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 52,
+                "after": 53,
+                "file": "a19-card-r90-s1000-26.png",
+                "cardName": "A19R90I Observatory Nine 1027"
+              }
+            },
+            {
+              "name": "card-imported-r90-27",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 53,
+                "after": 54,
+                "file": "a19-card-r90-s1000-27.png",
+                "cardName": "A19R90I 深夜食堂 1028"
+              }
+            },
+            {
+              "name": "card-imported-r90-28",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 54,
+                "after": 55,
+                "file": "a19-card-r90-s1000-28.png",
+                "cardName": "A19R90I Glass Garden 1029"
+              }
+            },
+            {
+              "name": "card-imported-r90-29",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 55,
+                "after": 56,
+                "file": "a19-card-r90-s1000-29.png",
+                "cardName": "A19R90I The Quiet Archive 1030"
+              }
+            },
+            {
+              "name": "card-imported-r90-30",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 56,
+                "after": 57,
+                "file": "a19-card-r90-s1000-30.png",
+                "cardName": "A19R90I 烟雨客栈 1031"
+              }
+            },
+            {
+              "name": "card-imported-r90-31",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 57,
+                "after": 58,
+                "file": "a19-card-r90-s1000-31.png",
+                "cardName": "A19R90I 星海図書館 1032"
+              }
+            },
+            {
+              "name": "card-imported-r90-32",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 58,
+                "after": 59,
+                "file": "a19-card-r90-s1000-32.png",
+                "cardName": "A19R90I EmberForge 1033"
+              }
+            },
+            {
+              "name": "card-imported-r90-33",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 59,
+                "after": 60,
+                "file": "a19-card-r90-s1000-33.png",
+                "cardName": "A19R90I Orchard of Whispers 1034"
+              }
+            },
+            {
+              "name": "card-imported-r90-34",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 60,
+                "after": 61,
+                "file": "a19-card-r90-s1000-34.png",
+                "cardName": "A19R90I 終電の駅 1035"
+              }
+            },
+            {
+              "name": "card-imported-r90-35",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 61,
+                "after": 62,
+                "file": "a19-card-r90-s1000-35.png",
+                "cardName": "A19R90I 砂の市場 1036"
+              }
+            },
+            {
+              "name": "card-imported-r90-36",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 62,
+                "after": 63,
+                "file": "a19-card-r90-s1000-36.png",
+                "cardName": "A19R90I Observatory Nine 1037"
+              }
+            },
+            {
+              "name": "card-imported-r90-37",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 63,
+                "after": 64,
+                "file": "a19-card-r90-s1000-37.png",
+                "cardName": "A19R90I 深夜食堂 1038"
+              }
+            },
+            {
+              "name": "cards-imported",
+              "ok": true,
+              "detail": {
+                "requested": 38,
+                "imported": 38
+              }
+            },
+            {
+              "name": "world-imported-r90-0",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 5,
+                "after": 6,
+                "importedName": "a19-world-r90-s1000-0",
+                "actualNames": [
+                  "a19-world-r90-s1000-0"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-0.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1001"
+              }
+            },
+            {
+              "name": "world-imported-r90-1",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 6,
+                "after": 7,
+                "importedName": "a19-world-r90-s1000-1",
+                "actualNames": [
+                  "a19-world-r90-s1000-1"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-1.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1002"
+              }
+            },
+            {
+              "name": "world-imported-r90-2",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 7,
+                "after": 8,
+                "importedName": "a19-world-r90-s1000-2",
+                "actualNames": [
+                  "a19-world-r90-s1000-2"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-2.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1003"
+              }
+            },
+            {
+              "name": "world-imported-r90-3",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 8,
+                "after": 9,
+                "importedName": "a19-world-r90-s1000-3",
+                "actualNames": [
+                  "a19-world-r90-s1000-3"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-3.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1004"
+              }
+            },
+            {
+              "name": "world-imported-r90-4",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 9,
+                "after": 10,
+                "importedName": "a19-world-r90-s1000-4",
+                "actualNames": [
+                  "a19-world-r90-s1000-4"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-4.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1005"
+              }
+            },
+            {
+              "name": "world-imported-r90-5",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 10,
+                "after": 11,
+                "importedName": "a19-world-r90-s1000-5",
+                "actualNames": [
+                  "a19-world-r90-s1000-5"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-5.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1006"
+              }
+            },
+            {
+              "name": "world-imported-r90-6",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 11,
+                "after": 12,
+                "importedName": "a19-world-r90-s1000-6",
+                "actualNames": [
+                  "a19-world-r90-s1000-6"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s1000-6.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1007"
+              }
+            },
+            {
+              "name": "world-books-imported",
+              "ok": true,
+              "detail": {
+                "requested": 7,
+                "imported": 7,
+                "requestedEntriesPerBook": 20
+              }
+            },
+            {
+              "name": "presets-imported",
+              "ok": true,
+              "detail": {
+                "requested": 16,
+                "created": 16
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-0",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-1",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-2",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-3",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-4",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-5",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-6",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "provider-still-connected-before-create-group-r90-7",
+              "ok": true,
+              "detail": {
+                "reloaded": true,
+                "state": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "customUrl": "http://127.0.0.1:60681/v1",
+                  "openGroupId": null,
+                  "selectedGroup": null
+                },
+                "expectedBaseURL": "http://127.0.0.1:60681/v1"
+              }
+            },
+            {
+              "name": "groups-created",
+              "ok": true,
+              "detail": {
+                "requested": 8,
+                "created": 8
+              }
+            }
+          ]
+        },
+        {
+          "file": "a20-topup2.json",
+          "targets": {
+            "cards": 64,
+            "worlds": 13,
+            "worldEntries": 20,
+            "presets": 20,
+            "groups": 8
+          },
+          "created": {
+            "cards": 0,
+            "worlds": 0,
+            "worldEntries": 0,
+            "presets": 0,
+            "groups": 0
+          },
+          "measured": {
+            "before": {
+              "cards": 65,
+              "worlds": 12,
+              "presets": 20,
+              "groups": 8
+            },
+            "cardShortfall": 0,
+            "worldShortfall": 1,
+            "presetShortfall": 0,
+            "groupShortfall": 0,
+            "after": {
+              "cards": 65,
+              "worlds": 12,
+              "presets": 20,
+              "groups": 8
+            }
+          },
+          "steps": [
+            {
+              "name": "page-and-connection",
+              "ok": true,
+              "detail": {
+                "readiness": {
+                  "settingsReady": true,
+                  "appReady": true,
+                  "viaFallback": false,
+                  "subscribed": true
+                },
+                "connection": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "url": "http://127.0.0.1:51293/v1",
+                  "model": "a20-live-model",
+                  "streaming": false
+                }
+              }
+            },
+            {
+              "name": "world-imported-r90-0",
+              "ok": false,
+              "detail": {
+                "ok": false,
+                "before": 12,
+                "after": 12,
+                "importedName": "A19R90 Imported Lore 1001",
+                "actualNames": [],
+                "entriesOnDisk": null,
+                "file": "a19-world-r90-s1000-0.json",
+                "expectedDisplayName": "A19R90 Imported Lore 1001"
+              }
+            },
+            {
+              "name": "world-books-imported",
+              "ok": false,
+              "detail": {
+                "requested": 1,
+                "imported": 0,
+                "requestedEntriesPerBook": 20
+              }
+            }
+          ]
+        },
+        {
+          "file": "a20-topup3.json",
+          "targets": {
+            "cards": 64,
+            "worlds": 13,
+            "worldEntries": 20,
+            "presets": 20,
+            "groups": 8
+          },
+          "created": {
+            "cards": 0,
+            "worlds": 1,
+            "worldEntries": 20,
+            "presets": 0,
+            "groups": 0
+          },
+          "measured": {
+            "before": {
+              "cards": 65,
+              "worlds": 12,
+              "presets": 20,
+              "groups": 8
+            },
+            "cardShortfall": 0,
+            "worldShortfall": 1,
+            "presetShortfall": 0,
+            "groupShortfall": 0,
+            "after": {
+              "cards": 65,
+              "worlds": 13,
+              "presets": 20,
+              "groups": 8
+            }
+          },
+          "steps": [
+            {
+              "name": "page-and-connection",
+              "ok": true,
+              "detail": {
+                "readiness": {
+                  "settingsReady": true,
+                  "appReady": true,
+                  "viaFallback": false,
+                  "subscribed": true
+                },
+                "connection": {
+                  "mainApi": "openai",
+                  "source": "custom",
+                  "url": "http://127.0.0.1:53830/v1",
+                  "model": "a20-live-model",
+                  "streaming": false
+                }
+              }
+            },
+            {
+              "name": "world-imported-r90-0",
+              "ok": true,
+              "detail": {
+                "ok": true,
+                "before": 12,
+                "after": 13,
+                "importedName": "a19-world-r90-s2000-0",
+                "actualNames": [
+                  "a19-world-r90-s2000-0"
+                ],
+                "entriesOnDisk": 20,
+                "file": "a19-world-r90-s2000-0.json",
+                "expectedDisplayName": "A19R90 Imported Lore 2001"
+              }
+            },
+            {
+              "name": "world-books-imported",
+              "ok": true,
+              "detail": {
+                "requested": 1,
+                "imported": 1,
+                "requestedEntriesPerBook": 20,
+                "startIndex": 2000
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "messageTopup": null
+  },
+  "honestLimits": [
+    "A generated input file is not a user artefact; only the UI import action is the creation provenance for cards/books/presets.",
+    "The message split is disclosed, not hidden: the product-save-path share is not UI-originated.",
+    "A tier matrix is a corpus, not a real human long-lived directory (GOAL.md section 14 stays NOT MET).",
+    "Counts are computed from the finalized tree, never copied from a builder log."
+  ]
+}
