@@ -107,9 +107,9 @@ if (fillActionsPath) {
             source: 'fill action log + manifest chat count',
             uiControlChatActions: (byPhase['new-chat'] ?? 0) + (byPhase['new-chat-ui'] ?? 0),
             productFunctionNewChatCalls: productFunctionCalls,
-            chatsOnDisk: Number(counts.chats ?? 0),
+            chatsOnDisk: Number(manifest.counts?.chats ?? 0),
             attribution: 'UI-control-created and product-function-created chats are recorded separately; the disk count is the sum measured by the manifest, and the difference between the recorded actions and the disk count is NOT attributed to a behaviour this probe instrumented (a New Chat call can also persist the outgoing chat), so it is disclosed as a boundary.',
-            unexplainedChatFiles: Number(counts.chats ?? 0) - ((byPhase['new-chat'] ?? 0) + (byPhase['new-chat-ui'] ?? 0)) - (productFunctionCalls ?? 0),
+            unexplainedChatFiles: Number(manifest.counts?.chats ?? 0) - ((byPhase['new-chat'] ?? 0) + (byPhase['new-chat-ui'] ?? 0)) - (productFunctionCalls ?? 0),
         };
     } catch { chatCreation = null; }
 }

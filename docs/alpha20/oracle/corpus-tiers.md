@@ -1,9 +1,19 @@
 # alpha.20 multi-tier UI-originated corpus: the medium tier run
 
-**Status: BUILT AND COUNTED; the FINAL manifest/report were deferred by the Lead's quiet window and are NOT
-claimed yet.** The numbers below come from a real run of the committed drivers against the pinned server.
-Where a number is derived from two measured artifacts rather than one frozen manifest, the row says so; no
-count here is copied from a builder log.
+**Status: BUILT, FINALIZED AND COUNTED — all medium targets reached.** Frozen artifacts committed beside this
+document: [`corpus-medium-manifest.json`](corpus-medium-manifest.json) (319,097 B, sha256
+`d1e966fccda8609e96ab118271ff7f69411a3c34680a7d8e0979d037a38fcf91`) and
+[`corpus-medium-report.json`](corpus-medium-report.json). The corpus TREE stays outside the repository (a data
+tree is an input, not a commit); the manifest is the digest a consumer re-walks.
+
+| identity | value |
+|---|---|
+| tree digest | `treeSha256 = d6f7d7f75fa84b7997c935cc5dfa67945c78aa05d5b2e7cb287ff05d2e774bd3` |
+| files / bytes | **1533 / 50,615,571** |
+| pinned subject | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
+| tier | `medium` |
+| manifest schema | `a19-corpus-manifest-v1` (reused; counts + seeded baseline + inventory + tree digest) |
+| report schema | `a20-corpus-report-v1` (targets/achieved/boundary + four provenance layers + tier evidence) |
 
 ## What was run
 
@@ -16,31 +26,31 @@ count here is copied from a builder log.
 | provenance | `a20-corpus-provenance.mjs` (new) | classifies every persisted message from the JSONL bytes: product-save marker, UI-turn marker + its assistant reply, product-native chat greeting |
 | finalize + report | `a19-corpus-finalize.mjs` + `a20-corpus-report.mjs` (new) | frozen only after the deferred step; target/achieved/boundary and the four provenance layers |
 
-## Counts (measured)
+## Counts (measured, from the frozen manifest)
 
-Pre-finalize `a19-corpus-finalize.mjs` run over the tree (before the last one-book top-up) reported:
-`files=1531 bytes=50,538,282 treeSha256=a78bb427317de17f08fff04fe785f7c3005bd42fbe8d6c8bbd5f153bced5e380`
-and `created={characters:64, worlds:11, worldEntries:209, presets:20, chats:163, messages:3000, groups:8,
+`a19-corpus-finalize.mjs` over the tree reported:
+`files=1533 bytes=50,615,571 treeSha256=d6f7d7f75fa84b7997c935cc5dfa67945c78aa05d5b2e7cb287ff05d2e774bd3`
+and `created={characters:64, worlds:12, worldEntries:229, presets:20, chats:163, messages:3000, groups:8,
 personas:3, themes:1, quickReplies:2, regexes:2, extensions:1}` with the measured seeded baseline
 `{characters:1, worlds:1, worldEntries:4, presets:92, chats:0, messages:0, groups:0, personas:0, themes:5,
-quickReplies:1, regexes:0, extensions:0}`. A follow-up `a20-corpus-topup.mjs` run (fresh input index) imported
-**one more world book with 20 entries** (`before:12 after:13`, `entriesOnDisk:20`).
+quickReplies:1, regexes:0, extensions:0}`. `created` is the persisted tree minus that measured baseline, so
+the seeded Eldoria book and the stock preset set are not counted as created.
 
 | category | medium target | achieved (created, i.e. excluding the measured seeded baseline) | reached |
 |---|---:|---:|---|
 | character cards | 64 | **64** | yes |
 | world books | 12 | **12** (disk 13 = 12 created + 1 seeded Eldoria) | yes |
-| world-book entries | 200 | **229** (209 + 20 from the last book) | yes |
+| world-book entries | 200 | **229** | yes |
 | OpenAI presets | 20 | **20** | yes |
 | chats | 100 | **163** | yes |
-| messages | 3000 | **3000** (persisted records, header records excluded) | yes |
+| messages | 3000 | **3000** (persisted message records, header records excluded) | yes |
 | groups | 8 | **8** | yes |
-| personas / quick replies / regex scripts | present | **3 / 2 created (3 on disk incl. seeded default) / 2** | yes |
+| personas / quick replies / regex scripts | present | **3 / 2 created (3 on disk incl. the seeded default) / 2** | yes |
 | Tavern Helper (pinned) | present and exercised | **installed at the pin, load + helper variable round trip + 3 verbs** | yes |
 | STscript variable | present | **`a19r1global` set through the real chat input** | yes |
 
-The world/entry counts are the sum of the frozen-manifest row and the recorded follow-up import; the FINAL
-manifest digest will replace this derivation when the deferred finalize runs, and will be the authority.
+`reachedAllTargets: true` in the report; `boundary: null`. The report carries the per-category rows with the
+seeded counts beside them.
 
 ## Message provenance (mandatory disclosure, not merged)
 
@@ -72,6 +82,7 @@ Derived by `a20-corpus-provenance.mjs` from the 163 persisted chat JSONL files (
 | manifest | display `酒馆助手`, version `4.11.3`, 266 files |
 | gapfill | 12 steps, 1 failed **by design** (`extension-enabled-through-ui`: the pinned revision auto-enables at load and the Extensions panel has no matching toggle — same disclosed red-by-design as alpha.19) |
 | helper | `globalThis.TavernHelper` present; chat variable set and read back; 3 verbs (swipe/regenerate/continue family) recorded by the gapfill run |
+| **egress finding** | the pinned extension's own load-time version check issued **one** request to `https://gitlab.com/api/v4/projects/novi028%2FJS-Slash-Runner/repository/files/manifest.json/raw?ref=main` (`200`) during this run. It is the pinned product's extension version check, not the provider or the harness, and it is the same egress alpha.19 disclosed. The seeded install froze the GIT origin (so an update path can only no-op), but the version check is an HTTP request and reached the live host here. A strictly offline job must block it at the network boundary; this run did not, and says so rather than implying a clean offline load. |
 
 ## Determinism
 
@@ -84,8 +95,9 @@ Derived by `a20-corpus-provenance.mjs` from the 163 persisted chat JSONL files (
 ## What this tier does NOT prove
 
 - It is not a real human's long-lived SillyTavern directory (`GOAL.md` §14 stays NOT MET).
-- It is not frozen yet: the final manifest/tree digest is pending the deferred finalize; the numbers above
-  are measured but the digest will move with the last import.
 - The UI-turn message sample is 5 turns; the volume is product-native by construction and disclosed above.
+- The extension load was not offline-clean: one live `gitlab.com` version-check request is recorded above.
 - It does not exercise the alpha.19 large/extreme targets (>=200 cards / 30 books / 800 entries / 50 presets
-  / 500 chats / 20000 messages / 20 groups): those remain NOT EXECUTED for alpha.20.
+  / 500 chats / 20000 messages / 20 groups): those remain **NOT EXECUTED** for alpha.20.
+- 67 chat files on disk are not attributed to a recorded creation action; the report records them as a
+  boundary instead of guessing (see the chat-creation table).
