@@ -99,8 +99,14 @@ The generator enforces these properties, each of which a hand edit would silentl
   stated in the figure's own footer rather than left for a reader to discover by measuring;
 - `role="img"` with `<title>` and `<desc>`, and the `<desc>` carries the SAME per-metric verdict word a sighted
   reader sees, plus the unit rule and the source run/commit;
-- **a type floor of 12 px at 1:1**: every text style is declared in one `TYPE_SCALE` table and the generator refuses
-  to render a size below 12 px (the check also runs over the committed SVG in CI);
+- **a type floor of 13 px at 1:1**: every text style is declared in one `TYPE_SCALE` table and the generator refuses
+  to render a size below 13 px (the check also runs over the committed SVG in CI); alpha.20 raised the whole scale one
+  step (row labels 20 px, values 18 px, notes 14 px) and a headless narrow-viewport check asserts that no text is
+  clipped at 360/720/1200 CSS px and that the hero numbers render at >= 18 px at 720 px;
+- **a colour-blind-safe subject pair**: blue against orange is the safest two-hue pair for deuteranopia and
+  protanopia and the two also differ in lightness, so the drawing survives a greyscale print; colour is never the
+  only encoding, because every bar carries a `NODE`/`GO` tag and a printed value and the `<desc>` names the subjects
+  in words;
 - an explicit opaque background, generic system font families only, and **no external reference** of any kind: no
   `@font-face`, image, script, or http(s) URL;
 - **two variants from one palette table**, so the dark and light drawings differ only in colour.
@@ -119,12 +125,17 @@ carry no meaning, and are excluded; every meaning-bearing mark is also labelled 
 | subtitle, legend labels, method notes | `#c9d1d9` | 12.26:1 | `#424a53` | 8.99:1 |
 | kicker, axis ticks, footer, legend note | `#9aa4b0` | 7.49:1 | `#57606a` | 6.39:1 |
 | derived ratios, verdict words, GoTavern values | `#6ee7f9` | 13.03:1 | `#0b5f7a` | 7.16:1 |
-| pinned bar fill (graphical, min 3:1) | `#f59e0b` | 8.81:1 | `#b45309` | 5.02:1 |
-| GoTavern bar fill (graphical, min 3:1) | `#22b8cf` | 7.95:1 | `#0e7490` | 5.36:1 |
+| pinned bar fill (graphical, min 3:1) | `#f0883e` | 7.48:1 | `#bc4c00` | 5.03:1 |
+| GoTavern bar fill (graphical, min 3:1) | `#58a6ff` | 7.49:1 | `#0969da` | 5.19:1 |
 
-Both variants were also rendered at 1× (1200 × 675) and at GitHub's mobile content widths (420 and 640 CSS px) during
-the change that introduced them; at mobile width the 16:9 image scales below comfortable reading size, which is why
-the Performance section keeps the same four numbers as a text table under the figure.
+Both variants are rendered headlessly by `tools/check-figure-a11y.mjs`, which asserts XML syntax, that every `<text>`
+bounding box stays inside the 1200x675 viewBox at 1200/720/360 CSS px, that the drawing never overflows its container,
+the 13 px type floor, that the hero numbers render at >= 18 px at 720 px, and that both `<desc>` elements restate every
+recomputed value from the artifact. **The honest limit:** a 1200 px-wide 16:9 image embedded in a 360 px-wide phone
+page is scaled to ~30%, so body text is not readable without opening the image (GitHub's mobile viewer shows it at
+natural size and supports zoom); the README's alt text and the Performance section carry the same four numbers as
+text, which is why the figure is an illustration and not the only copy of the data. The last headless run's artifact
+is `docs/alpha20/perf/figure-checks.json`.
 
 ## Visual style (2026-11-03 redesign)
 

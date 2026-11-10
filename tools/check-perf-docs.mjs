@@ -563,7 +563,7 @@ if (provenanceText !== null) {
     expectContains('PROVENANCE-PAIR', provenancePath, provenanceText, 'benchmark-light.svg', 'provenance must name the light figure variant next to the dark one');
     expectContains('PROVENANCE-CANVAS', provenancePath, provenanceText, '1200', 'provenance must state the shared canvas size');
     expectContains('PROVENANCE-CONTRAST', provenancePath, provenanceText, 'contrast', 'provenance must record the contrast audit');
-    expectContains('PROVENANCE-TYPE-FLOOR', provenancePath, provenanceText, '12 px', 'provenance must state the minimum type size at 1:1');
+    expectContains('PROVENANCE-TYPE-FLOOR', provenancePath, provenanceText, '13 px', 'provenance must state the minimum type size at 1:1');
     expectContains('PROVENANCE-REGEN', provenancePath, provenanceText, '--out-light', 'the update procedure must regenerate BOTH variants');
 }
 
