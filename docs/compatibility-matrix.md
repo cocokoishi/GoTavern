@@ -560,7 +560,7 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 |---|---|---|
 | Oracle fixtures | 123 | 70 |
 | Browser artefacts | 40 | 12 |
-| Go test functions | 1099 | 108 |
+| Go test functions | 1100 | 108 |
 | Workflow jobs | 57 in 22 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 3, PARTIAL 18, FAIL 0, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
