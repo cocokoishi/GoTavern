@@ -1,0 +1,15 @@
+{
+    "sha":  "260b7900d4bd2385a321ef859c7f998b8e28e02c",
+    "shortSha":  "260b790",
+    "binarySha256":  "6A297E48C238389DA02E113EA7BFD82021C4A18ACCE35E13CBFA8E8F6CECA1EB",
+    "minutes":  60,
+    "rate":  8,
+    "providerProbeOk":  false,
+    "providerProbeDetail":  "provider probe failed: status=502 detail=The remote server returned an error: (502) Bad Gateway.",
+    "primaryExit":  null,
+    "companionExit":  null,
+    "primaryArtifact":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\soak-primary.json",
+    "companionArtifact":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\soak-companion.json",
+    "primaryLog":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\soak-primary.log",
+    "companionLog":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\soak-companion.log"
+}

@@ -1,0 +1,122 @@
+{
+  "harness": "tools/perf/a20-soak-companion.mjs",
+  "startedAt": "2026-11-10T05:30:12.983Z",
+  "host": {
+    "os": "win32 arm64",
+    "cpus": 2,
+    "totalMemoryBytes": 12879790080
+  },
+  "parameters": {
+    "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\gotavern.exe",
+    "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\tree-companion\\data",
+    "configPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\soak-260b790\\tree-companion\\config.yaml",
+    "minutes": 60,
+    "rate": 2,
+    "port": 18872,
+    "providerBase": null,
+    "combinedWith": "tools/perf/a18-soak.mjs (primary, same process)"
+  },
+  "environment": {
+    "node": "v24.19.0",
+    "note": "Windows arm64 development host, shared with the other alpha.20 lanes; a18-soak is the primary load, this companion adds a low extra rate"
+  },
+  "routes": {
+    "characters-all": {
+      "count": 4477,
+      "non200": 0,
+      "p50": 153.86,
+      "p95": 238.77,
+      "p99": 369.06,
+      "max": 1156.95
+    },
+    "worldinfo-get": {
+      "count": 4477,
+      "non200": 0,
+      "p50": 5.07,
+      "p95": 14.7,
+      "p99": 23.39,
+      "max": 80.26
+    },
+    "chats-get": {
+      "count": 4477,
+      "non200": 0,
+      "p50": 31.18,
+      "p95": 60.68,
+      "p99": 78.32,
+      "max": 315.22
+    },
+    "settings-get": {
+      "count": 4477,
+      "non200": 0,
+      "p50": 66.59,
+      "p95": 107.09,
+      "p99": 131.79,
+      "max": 646.18
+    },
+    "chat-save": {
+      "count": 4477,
+      "non200": 0,
+      "p50": 14.71,
+      "p95": 29.58,
+      "p99": 38.44,
+      "max": 168.37
+    },
+    "chats-get (saved)": {
+      "count": 4477,
+      "non200": 0,
+      "p50": 1.87,
+      "p95": 4.69,
+      "p99": 8.22,
+      "max": 74.89
+    },
+    "worldinfo-edit": {
+      "count": 59,
+      "non200": 0,
+      "p50": 13.53,
+      "p95": 23.96,
+      "p99": 34.27,
+      "max": 34.27
+    },
+    "worldinfo-get (edited)": {
+      "count": 59,
+      "non200": 0,
+      "p50": 2.18,
+      "p95": 6.57,
+      "p99": 7.21,
+      "max": 7.21
+    }
+  },
+  "errors": [],
+  "worldInfo": {
+    "executed": true,
+    "reason": null,
+    "lastEditStatus": 200,
+    "lastRereadStatus": 200,
+    "markerPresentAfterEdit": true,
+    "restoreAttempts": 59,
+    "restoredByteIdentical": true,
+    "restoredByteIdenticalFinal": true
+  },
+  "chatIntegrity": {
+    "checks": 4477,
+    "failures": 0
+  },
+  "provider": {
+    "executed": false,
+    "reason": "no --provider-base supplied; generation/SSE-cancel UNEXECUTED for this run (a deterministic loopback peer is required)"
+  },
+  "sessions": {
+    "executed": true,
+    "detail": "3 independent cookie-jar sessions on one default-user process, each driving its own requests"
+  },
+  "model": "one process, one data root; sessions are independent cookie jars on the same default user. Multi-ACCOUNT isolation is covered by tests/perf/m5-eight-users.mjs, not by this soak.",
+  "leakVerdict": "UNPROVEN (an RSS trend over 60 minutes is not a proof; allocator retention is not separable from RSS; the companion process is killed with force)",
+  "process": {
+    "pid": 17320,
+    "ready": true,
+    "exitedDuringRun": false
+  },
+  "finishedAt": "2026-11-10T06:30:13.475Z",
+  "wallMs": 3600126,
+  "iterations": 4477
+}
