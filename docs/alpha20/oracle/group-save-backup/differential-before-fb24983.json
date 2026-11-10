@@ -1,0 +1,2223 @@
+{
+  "arch": "arm64",
+  "argv": [],
+  "dataRootTemplate": {
+    "bytes": 30059899,
+    "configSha256": "d0e9063a0f039cd4cc8b3fb93bb63f0518b1baf43e017755e9fa62af7fc8c461",
+    "files": 209,
+    "path": "template-data",
+    "treeSha256": "170f543815012d1b3b588137ba1d49a780e045cd5d120c82b8766b7ecd22ef57"
+  },
+  "finishedAt": "2026-11-10T02:31:01.822Z",
+  "gotavern": {
+    "binary": "gotavern-differential.exe",
+    "binarySha256": "9bc4e8d1deee40f323ed94d45f3526d6b7f71cce287cb47e99878b64b2c1120a"
+  },
+  "gotavernGroupRows": [
+    {
+      "backups": null,
+      "bodyText": "Bad Request",
+      "chatFile": null,
+      "id": "G1-missing-id",
+      "status": 400
+    },
+    {
+      "backups": null,
+      "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}",
+      "chatFile": null,
+      "id": "G2-non-array",
+      "status": 400
+    },
+    {
+      "backups": [],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 237,
+        "exists": true,
+        "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+      },
+      "id": "G3-new-group",
+      "status": 200
+    },
+    {
+      "backups": [],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 337,
+        "exists": true,
+        "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+      },
+      "id": "G4-matching-overwrite",
+      "status": 200
+    },
+    {
+      "backups": [],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 226,
+        "exists": true,
+        "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+      },
+      "id": "G5-mismatch",
+      "status": 200
+    },
+    {
+      "backups": [],
+      "bodyText": null,
+      "chatFile": {
+        "bytes": 226,
+        "exists": true,
+        "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+      },
+      "id": "G6-throttle-settled",
+      "status": null
+    },
+    {
+      "backups": [],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 225,
+        "exists": true,
+        "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+      },
+      "id": "G7-force",
+      "status": 200
+    },
+    {
+      "backups": [],
+      "backupsAddedBeforeStop": 0,
+      "backupsFlushedAcrossExit": 0,
+      "bodyText": [
+        "{\"ok\":true}",
+        "{\"ok\":true}"
+      ],
+      "chatFile": null,
+      "exit": {
+        "code": null,
+        "how": "SIGTERM",
+        "signal": "SIGTERM"
+      },
+      "flushedBackup": null,
+      "id": "G8-flush-on-close",
+      "status": [
+        200,
+        200
+      ]
+    },
+    {
+      "backups": null,
+      "bodyText": null,
+      "chatFile": null,
+      "firstMessage": "flush two",
+      "id": "G9-restart-readback",
+      "messageCount": 1,
+      "status": 200
+    },
+    {
+      "backups": null,
+      "bodyText": null,
+      "chatFile": null,
+      "configEdits": [
+        {
+          "file": "config.yaml",
+          "from": "maxTotalBackups: -1",
+          "sha256": "4d8cca5018b8c3e92951ceef17ca02bff47d340b506d0f3cfdd62e86d64c6c59",
+          "to": "maxTotalBackups: 2"
+        },
+        {
+          "file": "config.yaml",
+          "from": "throttleInterval: 10000",
+          "sha256": "bbd73f9fb64aca4c868fd85e5c86dde03d675adff39c4f1c98bfb906f2ec4ddd",
+          "to": "throttleInterval: 1500"
+        }
+      ],
+      "id": "G10-retention-shared-quota",
+      "restart": {
+        "code": null,
+        "how": "SIGTERM",
+        "signal": "SIGTERM"
+      },
+      "retention": [
+        {
+          "backups": [],
+          "index": 1,
+          "kind": "group-chat",
+          "status": 200
+        },
+        {
+          "backups": [],
+          "index": 2,
+          "kind": "group-chat",
+          "status": 200
+        },
+        {
+          "backups": [],
+          "index": 3,
+          "kind": "group-chat",
+          "status": 200
+        },
+        {
+          "backups": [
+            {
+              "bytes": 237,
+              "name": "chat_a20diff_<TS>.jsonl",
+              "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+            }
+          ],
+          "index": 4,
+          "kind": "character-chat",
+          "status": 200
+        }
+      ],
+      "status": [
+        200,
+        200,
+        200,
+        200
+      ]
+    },
+    {
+      "backups": null,
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 237,
+        "exists": true,
+        "sha256": "6581983c63a568c56db76734c2d205d1fa659cadac32b344f5b9160a22e094bd"
+      },
+      "id": "G11-broken-backups-dir",
+      "status": 200
+    }
+  ],
+  "kind": "a20-pinned-probe-v1",
+  "matrix": {
+    "matches": 4,
+    "matrix": "group-save-backup",
+    "mismatches": 7,
+    "rowsWithMismatch": [
+      {
+        "differences": [
+          {
+            "field": "backups",
+            "gotavern": [],
+            "pinned": [
+              {
+                "bytes": 237,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G3-new-group"
+      },
+      {
+        "differences": [
+          {
+            "field": "backups",
+            "gotavern": [],
+            "pinned": [
+              {
+                "bytes": 237,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G4-matching-overwrite"
+      },
+      {
+        "differences": [
+          {
+            "field": "status",
+            "gotavern": 200,
+            "pinned": 400
+          },
+          {
+            "field": "bodyText",
+            "gotavern": "{\"ok\":true}",
+            "pinned": "{\"error\":\"integrity\"}"
+          },
+          {
+            "field": "chatFile",
+            "gotavern": {
+              "bytes": 226,
+              "exists": true,
+              "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+            },
+            "pinned": {
+              "bytes": 337,
+              "exists": true,
+              "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+            }
+          },
+          {
+            "field": "backups",
+            "gotavern": [],
+            "pinned": [
+              {
+                "bytes": 237,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G5-mismatch"
+      },
+      {
+        "differences": [
+          {
+            "field": "chatFile",
+            "gotavern": {
+              "bytes": 226,
+              "exists": true,
+              "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+            },
+            "pinned": {
+              "bytes": 337,
+              "exists": true,
+              "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+            }
+          },
+          {
+            "field": "backups",
+            "gotavern": [],
+            "pinned": [
+              {
+                "bytes": 237,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+              },
+              {
+                "bytes": 337,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G6-throttle-settled"
+      },
+      {
+        "differences": [
+          {
+            "field": "backups",
+            "gotavern": [],
+            "pinned": [
+              {
+                "bytes": 237,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+              },
+              {
+                "bytes": 337,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+              },
+              {
+                "bytes": 225,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G7-force"
+      },
+      {
+        "differences": [
+          {
+            "field": "backupsAddedBeforeStop",
+            "gotavern": 0,
+            "pinned": 1
+          },
+          {
+            "field": "backupsFlushedAcrossExit",
+            "gotavern": 0,
+            "pinned": 1
+          },
+          {
+            "field": "backups",
+            "gotavern": [],
+            "pinned": [
+              {
+                "bytes": 237,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+              },
+              {
+                "bytes": 337,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+              },
+              {
+                "bytes": 225,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+              },
+              {
+                "bytes": 228,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "ab604f97ded2b9e56608f29d3b1e3a81a226718e8fd8a9a02e4678985433f5f6"
+              },
+              {
+                "bytes": 228,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G8-flush-on-close"
+      },
+      {
+        "differences": [
+          {
+            "field": "retention",
+            "gotavern": [
+              {
+                "backups": [],
+                "index": 1,
+                "kind": "group-chat",
+                "status": 200
+              },
+              {
+                "backups": [],
+                "index": 2,
+                "kind": "group-chat",
+                "status": 200
+              },
+              {
+                "backups": [],
+                "index": 3,
+                "kind": "group-chat",
+                "status": 200
+              },
+              {
+                "backups": [
+                  {
+                    "bytes": 237,
+                    "name": "chat_a20diff_<TS>.jsonl",
+                    "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+                  }
+                ],
+                "index": 4,
+                "kind": "character-chat",
+                "status": 200
+              }
+            ],
+            "pinned": [
+              {
+                "backups": [
+                  {
+                    "bytes": 228,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+                  },
+                  {
+                    "bytes": 236,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+                  }
+                ],
+                "index": 1,
+                "kind": "group-chat",
+                "status": 200
+              },
+              {
+                "backups": [
+                  {
+                    "bytes": 236,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+                  },
+                  {
+                    "bytes": 236,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+                  }
+                ],
+                "index": 2,
+                "kind": "group-chat",
+                "status": 200
+              },
+              {
+                "backups": [
+                  {
+                    "bytes": 236,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+                  },
+                  {
+                    "bytes": 236,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+                  }
+                ],
+                "index": 3,
+                "kind": "group-chat",
+                "status": 200
+              },
+              {
+                "backups": [
+                  {
+                    "bytes": 236,
+                    "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                    "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+                  },
+                  {
+                    "bytes": 237,
+                    "name": "chat_a20diff_<TS>.jsonl",
+                    "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+                  }
+                ],
+                "index": 4,
+                "kind": "character-chat",
+                "status": 200
+              }
+            ]
+          }
+        ],
+        "match": false,
+        "scenario": "G10-retention-shared-quota"
+      }
+    ],
+    "scenarios": 11,
+    "verdict": "DIFFERENT"
+  },
+  "method": {
+    "gotavernGroupRows": [
+      {
+        "backups": null,
+        "bodyText": "Bad Request",
+        "chatFile": null,
+        "id": "G1-missing-id",
+        "status": 400
+      },
+      {
+        "backups": null,
+        "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}",
+        "chatFile": null,
+        "id": "G2-non-array",
+        "status": 400
+      },
+      {
+        "backups": [],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 237,
+          "exists": true,
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        },
+        "id": "G3-new-group",
+        "status": 200
+      },
+      {
+        "backups": [],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 337,
+          "exists": true,
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        },
+        "id": "G4-matching-overwrite",
+        "status": 200
+      },
+      {
+        "backups": [],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 226,
+          "exists": true,
+          "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+        },
+        "id": "G5-mismatch",
+        "status": 200
+      },
+      {
+        "backups": [],
+        "bodyText": null,
+        "chatFile": {
+          "bytes": 226,
+          "exists": true,
+          "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+        },
+        "id": "G6-throttle-settled",
+        "status": null
+      },
+      {
+        "backups": [],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 225,
+          "exists": true,
+          "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+        },
+        "id": "G7-force",
+        "status": 200
+      },
+      {
+        "backups": [],
+        "backupsAddedBeforeStop": 0,
+        "backupsFlushedAcrossExit": 0,
+        "bodyText": [
+          "{\"ok\":true}",
+          "{\"ok\":true}"
+        ],
+        "chatFile": null,
+        "exit": {
+          "code": null,
+          "how": "SIGTERM",
+          "signal": "SIGTERM"
+        },
+        "flushedBackup": null,
+        "id": "G8-flush-on-close",
+        "status": [
+          200,
+          200
+        ]
+      },
+      {
+        "backups": null,
+        "bodyText": null,
+        "chatFile": null,
+        "firstMessage": "flush two",
+        "id": "G9-restart-readback",
+        "messageCount": 1,
+        "status": 200
+      },
+      {
+        "backups": null,
+        "bodyText": null,
+        "chatFile": null,
+        "configEdits": [
+          {
+            "file": "config.yaml",
+            "from": "maxTotalBackups: -1",
+            "sha256": "4d8cca5018b8c3e92951ceef17ca02bff47d340b506d0f3cfdd62e86d64c6c59",
+            "to": "maxTotalBackups: 2"
+          },
+          {
+            "file": "config.yaml",
+            "from": "throttleInterval: 10000",
+            "sha256": "bbd73f9fb64aca4c868fd85e5c86dde03d675adff39c4f1c98bfb906f2ec4ddd",
+            "to": "throttleInterval: 1500"
+          }
+        ],
+        "id": "G10-retention-shared-quota",
+        "restart": {
+          "code": null,
+          "how": "SIGTERM",
+          "signal": "SIGTERM"
+        },
+        "retention": [
+          {
+            "backups": [],
+            "index": 1,
+            "kind": "group-chat",
+            "status": 200
+          },
+          {
+            "backups": [],
+            "index": 2,
+            "kind": "group-chat",
+            "status": 200
+          },
+          {
+            "backups": [],
+            "index": 3,
+            "kind": "group-chat",
+            "status": 200
+          },
+          {
+            "backups": [
+              {
+                "bytes": 237,
+                "name": "chat_a20diff_<TS>.jsonl",
+                "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+              }
+            ],
+            "index": 4,
+            "kind": "character-chat",
+            "status": 200
+          }
+        ],
+        "status": [
+          200,
+          200,
+          200,
+          200
+        ]
+      },
+      {
+        "backups": null,
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 237,
+          "exists": true,
+          "sha256": "6581983c63a568c56db76734c2d205d1fa659cadac32b344f5b9160a22e094bd"
+        },
+        "id": "G11-broken-backups-dir",
+        "status": 200
+      }
+    ],
+    "gotavernLegRows": [
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 254,
+          "exists": true,
+          "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+        },
+        "id": "A1-new-file",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 367,
+          "exists": true,
+          "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+        },
+        "id": "A2-matching-overwrite",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 242,
+          "exists": true,
+          "sha256": "efc63d9a09360ff6eb921f35bf0ceda6046fb6049e444f797cfb4b658a5fea82"
+        },
+        "id": "A3-mismatch-no-force",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 253,
+          "exists": true,
+          "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+        },
+        "id": "A4-force-false",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": null,
+        "chatFile": {
+          "bytes": 253,
+          "exists": true,
+          "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+        },
+        "id": "A5-throttle-settled",
+        "status": null
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 241,
+          "exists": true,
+          "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+        },
+        "id": "A6-force-true",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 213,
+          "exists": true,
+          "sha256": "9c3993fac1f627260ae8b58aecf8ce40f499fe5239ab037dfa835562205703e5"
+        },
+        "id": "A7-legacy-no-slug",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}",
+        "chatFile": {
+          "bytes": 213,
+          "exists": true,
+          "sha256": "9c3993fac1f627260ae8b58aecf8ce40f499fe5239ab037dfa835562205703e5"
+        },
+        "id": "A8-non-array",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 237,
+          "exists": true,
+          "sha256": "cf2ec775d9797563b5680c3af3affc3378cdca5fbf8d98510f0f5f08f3a40f5b"
+        },
+        "id": "A9-bom-header",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 251,
+          "exists": true,
+          "sha256": "67493494eabe29f5ca960a316faaf1106d7f8fcfd6424e849e28b9aaef19b233"
+        },
+        "id": "A10-corrupt-first-line",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 241,
+          "exists": true,
+          "sha256": "41ccde82314306630d6f4359c0a3c65c48cad4561fb1fd4305ecccabf4409b89"
+        },
+        "id": "A11-empty-file",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "41ccde82314306630d6f4359c0a3c65c48cad4561fb1fd4305ecccabf4409b89"
+          },
+          {
+            "bytes": 250,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "92f3613da8abb9f70a516f70a8a43c1c7b39552aec975f0e6a3597c65e3e2bc1"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 250,
+          "exists": true,
+          "sha256": "92f3613da8abb9f70a516f70a8a43c1c7b39552aec975f0e6a3597c65e3e2bc1"
+        },
+        "configEdit": {
+          "file": "config.yaml",
+          "from": "checkIntegrity: true",
+          "sha256": "f5d925ead77e60a1a327ff6ac684ba813988b55097199a6df3e799c14c38025d",
+          "to": "checkIntegrity: false"
+        },
+        "id": "B1-checkIntegrity-false",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 253,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "fb4c296d157b9b82847916ea66f34207756df16bc72b1cdb19f0027fca69b59e"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "41ccde82314306630d6f4359c0a3c65c48cad4561fb1fd4305ecccabf4409b89"
+          },
+          {
+            "bytes": 250,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "92f3613da8abb9f70a516f70a8a43c1c7b39552aec975f0e6a3597c65e3e2bc1"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 245,
+          "exists": true,
+          "sha256": "7076a89d506e3be02d888983ad2061c6c976bdbd184951e28efbb6d63677ec7a"
+        },
+        "configEdit": {
+          "anchor": "backups:",
+          "file": "config.yaml",
+          "from": "enabled: true",
+          "sha256": "c426350c7a34802fb033575f17c9ca838affc39683a190fb829bfe7bfae2c65f",
+          "to": "enabled: false"
+        },
+        "id": "C1-backups-disabled",
+        "status": 200
+      },
+      {
+        "backups": null,
+        "bodyText": null,
+        "chatFile": null,
+        "firstLine": null,
+        "id": "D1-restart-readback",
+        "messageCount": 1,
+        "status": 200
+      }
+    ],
+    "normalisation": "ONLY the backup filename timestamp `_YYYYMMDD-HHMMSS` is replaced with `_<TS>` (wall-clock by design, pinned source generateTimestamp). Response bodies are compared as bytes; chat files by sha256.",
+    "pinnedGroupRows": [
+      {
+        "backups": null,
+        "bodyText": "Bad Request",
+        "chatFile": null,
+        "id": "G1-missing-id",
+        "status": 400
+      },
+      {
+        "backups": null,
+        "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}",
+        "chatFile": null,
+        "id": "G2-non-array",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 237,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 237,
+          "exists": true,
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        },
+        "id": "G3-new-group",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 237,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 337,
+          "exists": true,
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        },
+        "id": "G4-matching-overwrite",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 237,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+          }
+        ],
+        "bodyText": "{\"error\":\"integrity\"}",
+        "chatFile": {
+          "bytes": 337,
+          "exists": true,
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        },
+        "id": "G5-mismatch",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 237,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+          },
+          {
+            "bytes": 337,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+          }
+        ],
+        "bodyText": null,
+        "chatFile": {
+          "bytes": 337,
+          "exists": true,
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        },
+        "id": "G6-throttle-settled",
+        "status": null
+      },
+      {
+        "backups": [
+          {
+            "bytes": 237,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+          },
+          {
+            "bytes": 337,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+          },
+          {
+            "bytes": 225,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 225,
+          "exists": true,
+          "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+        },
+        "id": "G7-force",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 237,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+          },
+          {
+            "bytes": 337,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+          },
+          {
+            "bytes": 225,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+          },
+          {
+            "bytes": 228,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "ab604f97ded2b9e56608f29d3b1e3a81a226718e8fd8a9a02e4678985433f5f6"
+          },
+          {
+            "bytes": 228,
+            "name": "chat_a20_diff_group_1_<TS>.jsonl",
+            "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+          }
+        ],
+        "backupsAddedBeforeStop": 1,
+        "backupsFlushedAcrossExit": 1,
+        "bodyText": [
+          "{\"ok\":true}",
+          "{\"ok\":true}"
+        ],
+        "chatFile": null,
+        "exit": {
+          "code": null,
+          "how": "SIGTERM",
+          "signal": "SIGTERM"
+        },
+        "flushedBackup": null,
+        "id": "G8-flush-on-close",
+        "status": [
+          200,
+          200
+        ]
+      },
+      {
+        "backups": null,
+        "bodyText": null,
+        "chatFile": null,
+        "firstMessage": "flush two",
+        "id": "G9-restart-readback",
+        "messageCount": 1,
+        "status": 200
+      },
+      {
+        "backups": null,
+        "bodyText": null,
+        "chatFile": null,
+        "configEdits": [
+          {
+            "file": "config.yaml",
+            "from": "maxTotalBackups: -1",
+            "sha256": "4d8cca5018b8c3e92951ceef17ca02bff47d340b506d0f3cfdd62e86d64c6c59",
+            "to": "maxTotalBackups: 2"
+          },
+          {
+            "file": "config.yaml",
+            "from": "throttleInterval: 10000",
+            "sha256": "bbd73f9fb64aca4c868fd85e5c86dde03d675adff39c4f1c98bfb906f2ec4ddd",
+            "to": "throttleInterval: 1500"
+          }
+        ],
+        "id": "G10-retention-shared-quota",
+        "restart": {
+          "code": null,
+          "how": "SIGTERM",
+          "signal": "SIGTERM"
+        },
+        "retention": [
+          {
+            "backups": [
+              {
+                "bytes": 228,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+              },
+              {
+                "bytes": 236,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+              }
+            ],
+            "index": 1,
+            "kind": "group-chat",
+            "status": 200
+          },
+          {
+            "backups": [
+              {
+                "bytes": 236,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+              },
+              {
+                "bytes": 236,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+              }
+            ],
+            "index": 2,
+            "kind": "group-chat",
+            "status": 200
+          },
+          {
+            "backups": [
+              {
+                "bytes": 236,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+              },
+              {
+                "bytes": 236,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+              }
+            ],
+            "index": 3,
+            "kind": "group-chat",
+            "status": 200
+          },
+          {
+            "backups": [
+              {
+                "bytes": 236,
+                "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+              },
+              {
+                "bytes": 237,
+                "name": "chat_a20diff_<TS>.jsonl",
+                "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+              }
+            ],
+            "index": 4,
+            "kind": "character-chat",
+            "status": 200
+          }
+        ],
+        "status": [
+          200,
+          200,
+          200,
+          200
+        ]
+      },
+      {
+        "backups": null,
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 237,
+          "exists": true,
+          "sha256": "6581983c63a568c56db76734c2d205d1fa659cadac32b344f5b9160a22e094bd"
+        },
+        "id": "G11-broken-backups-dir",
+        "status": 200
+      }
+    ],
+    "pinnedLegRows": [
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 254,
+          "exists": true,
+          "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+        },
+        "id": "A1-new-file",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 367,
+          "exists": true,
+          "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+        },
+        "id": "A2-matching-overwrite",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"error\":\"integrity\"}",
+        "chatFile": {
+          "bytes": 367,
+          "exists": true,
+          "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+        },
+        "id": "A3-mismatch-no-force",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          }
+        ],
+        "bodyText": "{\"error\":\"integrity\"}",
+        "chatFile": {
+          "bytes": 367,
+          "exists": true,
+          "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+        },
+        "id": "A4-force-false",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          }
+        ],
+        "bodyText": null,
+        "chatFile": {
+          "bytes": 367,
+          "exists": true,
+          "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+        },
+        "id": "A5-throttle-settled",
+        "status": null
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 241,
+          "exists": true,
+          "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+        },
+        "id": "A6-force-true",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 213,
+          "exists": true,
+          "sha256": "9c3993fac1f627260ae8b58aecf8ce40f499fe5239ab037dfa835562205703e5"
+        },
+        "id": "A7-legacy-no-slug",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          }
+        ],
+        "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}",
+        "chatFile": {
+          "bytes": 213,
+          "exists": true,
+          "sha256": "9c3993fac1f627260ae8b58aecf8ce40f499fe5239ab037dfa835562205703e5"
+        },
+        "id": "A8-non-array",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 237,
+          "exists": true,
+          "sha256": "cf2ec775d9797563b5680c3af3affc3378cdca5fbf8d98510f0f5f08f3a40f5b"
+        },
+        "id": "A9-bom-header",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          }
+        ],
+        "bodyText": "{\"error\":\"integrity\"}",
+        "chatFile": {
+          "bytes": 21,
+          "exists": true,
+          "sha256": "84dccfd5d8e833f7b07556e1dcd3c29c06a1a0dcaf7f5964fa3feb912136da7c"
+        },
+        "id": "A10-corrupt-first-line",
+        "status": 400
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 241,
+          "exists": true,
+          "sha256": "41ccde82314306630d6f4359c0a3c65c48cad4561fb1fd4305ecccabf4409b89"
+        },
+        "id": "A11-empty-file",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "41ccde82314306630d6f4359c0a3c65c48cad4561fb1fd4305ecccabf4409b89"
+          },
+          {
+            "bytes": 250,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "92f3613da8abb9f70a516f70a8a43c1c7b39552aec975f0e6a3597c65e3e2bc1"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 250,
+          "exists": true,
+          "sha256": "92f3613da8abb9f70a516f70a8a43c1c7b39552aec975f0e6a3597c65e3e2bc1"
+        },
+        "configEdit": {
+          "file": "config.yaml",
+          "from": "checkIntegrity: true",
+          "sha256": "f5d925ead77e60a1a327ff6ac684ba813988b55097199a6df3e799c14c38025d",
+          "to": "checkIntegrity: false"
+        },
+        "id": "B1-checkIntegrity-false",
+        "status": 200
+      },
+      {
+        "backups": [
+          {
+            "bytes": 254,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "8c7e649172a1f556aed3c189bfc71cb5c77298874e0e1e87384b8280c681f36d"
+          },
+          {
+            "bytes": 367,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "6eee72506074cc723d3913a87b12ef60fe67dbb1b247580b65ee76dd762e2aec"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "e5e329028a599e91446a66f83f0bf8c7a880a10eeb721be5e014218b36a44420"
+          },
+          {
+            "bytes": 241,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "41ccde82314306630d6f4359c0a3c65c48cad4561fb1fd4305ecccabf4409b89"
+          },
+          {
+            "bytes": 250,
+            "name": "chat_a20diff_<TS>.jsonl",
+            "sha256": "92f3613da8abb9f70a516f70a8a43c1c7b39552aec975f0e6a3597c65e3e2bc1"
+          }
+        ],
+        "bodyText": "{\"ok\":true}",
+        "chatFile": {
+          "bytes": 245,
+          "exists": true,
+          "sha256": "7076a89d506e3be02d888983ad2061c6c976bdbd184951e28efbb6d63677ec7a"
+        },
+        "configEdit": {
+          "anchor": "backups:",
+          "file": "config.yaml",
+          "from": "enabled: true",
+          "sha256": "c426350c7a34802fb033575f17c9ca838affc39683a190fb829bfe7bfae2c65f",
+          "to": "enabled: false"
+        },
+        "id": "C1-backups-disabled",
+        "status": 200
+      },
+      {
+        "backups": null,
+        "bodyText": null,
+        "chatFile": null,
+        "firstLine": null,
+        "id": "D1-restart-readback",
+        "messageCount": 1,
+        "status": 200
+      }
+    ],
+    "subjects": "the READ-ONLY pinned checkout and the current worktree GoTavern binary, each over its own fresh data-root copy of the recorded pinned template",
+    "tuple": "status, exact response body bytes, persisted chat-file sha256/bytes, backup file names with the wall-clock timestamp normalised to <TS>, backup content sha256, restart/read-back outcomes, flush/retention outcomes"
+  },
+  "node": "v24.19.0",
+  "pinned": {
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "pinnedCommit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+  "pinnedGroupRows": [
+    {
+      "backups": null,
+      "bodyText": "Bad Request",
+      "chatFile": null,
+      "id": "G1-missing-id",
+      "status": 400
+    },
+    {
+      "backups": null,
+      "bodyText": "{\"error\":\"The request's body.chat is not an array.\"}",
+      "chatFile": null,
+      "id": "G2-non-array",
+      "status": 400
+    },
+    {
+      "backups": [
+        {
+          "bytes": 237,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        }
+      ],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 237,
+        "exists": true,
+        "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+      },
+      "id": "G3-new-group",
+      "status": 200
+    },
+    {
+      "backups": [
+        {
+          "bytes": 237,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        }
+      ],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 337,
+        "exists": true,
+        "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+      },
+      "id": "G4-matching-overwrite",
+      "status": 200
+    },
+    {
+      "backups": [
+        {
+          "bytes": 237,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        }
+      ],
+      "bodyText": "{\"error\":\"integrity\"}",
+      "chatFile": {
+        "bytes": 337,
+        "exists": true,
+        "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+      },
+      "id": "G5-mismatch",
+      "status": 400
+    },
+    {
+      "backups": [
+        {
+          "bytes": 237,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        },
+        {
+          "bytes": 337,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        }
+      ],
+      "bodyText": null,
+      "chatFile": {
+        "bytes": 337,
+        "exists": true,
+        "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+      },
+      "id": "G6-throttle-settled",
+      "status": null
+    },
+    {
+      "backups": [
+        {
+          "bytes": 237,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        },
+        {
+          "bytes": 337,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        },
+        {
+          "bytes": 225,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+        }
+      ],
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 225,
+        "exists": true,
+        "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+      },
+      "id": "G7-force",
+      "status": 200
+    },
+    {
+      "backups": [
+        {
+          "bytes": 237,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+        },
+        {
+          "bytes": 337,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+        },
+        {
+          "bytes": 225,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+        },
+        {
+          "bytes": 228,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "ab604f97ded2b9e56608f29d3b1e3a81a226718e8fd8a9a02e4678985433f5f6"
+        },
+        {
+          "bytes": 228,
+          "name": "chat_a20_diff_group_1_<TS>.jsonl",
+          "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+        }
+      ],
+      "backupsAddedBeforeStop": 1,
+      "backupsFlushedAcrossExit": 1,
+      "bodyText": [
+        "{\"ok\":true}",
+        "{\"ok\":true}"
+      ],
+      "chatFile": null,
+      "exit": {
+        "code": null,
+        "how": "SIGTERM",
+        "signal": "SIGTERM"
+      },
+      "flushedBackup": null,
+      "id": "G8-flush-on-close",
+      "status": [
+        200,
+        200
+      ]
+    },
+    {
+      "backups": null,
+      "bodyText": null,
+      "chatFile": null,
+      "firstMessage": "flush two",
+      "id": "G9-restart-readback",
+      "messageCount": 1,
+      "status": 200
+    },
+    {
+      "backups": null,
+      "bodyText": null,
+      "chatFile": null,
+      "configEdits": [
+        {
+          "file": "config.yaml",
+          "from": "maxTotalBackups: -1",
+          "sha256": "4d8cca5018b8c3e92951ceef17ca02bff47d340b506d0f3cfdd62e86d64c6c59",
+          "to": "maxTotalBackups: 2"
+        },
+        {
+          "file": "config.yaml",
+          "from": "throttleInterval: 10000",
+          "sha256": "bbd73f9fb64aca4c868fd85e5c86dde03d675adff39c4f1c98bfb906f2ec4ddd",
+          "to": "throttleInterval: 1500"
+        }
+      ],
+      "id": "G10-retention-shared-quota",
+      "restart": {
+        "code": null,
+        "how": "SIGTERM",
+        "signal": "SIGTERM"
+      },
+      "retention": [
+        {
+          "backups": [
+            {
+              "bytes": 228,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+            },
+            {
+              "bytes": 236,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+            }
+          ],
+          "index": 1,
+          "kind": "group-chat",
+          "status": 200
+        },
+        {
+          "backups": [
+            {
+              "bytes": 236,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+            },
+            {
+              "bytes": 236,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+            }
+          ],
+          "index": 2,
+          "kind": "group-chat",
+          "status": 200
+        },
+        {
+          "backups": [
+            {
+              "bytes": 236,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+            },
+            {
+              "bytes": 236,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+            }
+          ],
+          "index": 3,
+          "kind": "group-chat",
+          "status": 200
+        },
+        {
+          "backups": [
+            {
+              "bytes": 236,
+              "name": "chat_a20_diff_group_1_<TS>.jsonl",
+              "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+            },
+            {
+              "bytes": 237,
+              "name": "chat_a20diff_<TS>.jsonl",
+              "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+            }
+          ],
+          "index": 4,
+          "kind": "character-chat",
+          "status": 200
+        }
+      ],
+      "status": [
+        200,
+        200,
+        200,
+        200
+      ]
+    },
+    {
+      "backups": null,
+      "bodyText": "{\"ok\":true}",
+      "chatFile": {
+        "bytes": 237,
+        "exists": true,
+        "sha256": "6581983c63a568c56db76734c2d205d1fa659cadac32b344f5b9160a22e094bd"
+      },
+      "id": "G11-broken-backups-dir",
+      "status": 200
+    }
+  ],
+  "pinnedRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern",
+  "platform": "win32",
+  "probe": "chat-integrity+group-save-backup",
+  "purpose": "run the pinned chat-integrity and group-save/backup matrices on BOTH subjects and diff the observable tuple, so the two closed alpha.20 gaps have a real Go-vs-pinned differential rather than a pinned-only oracle",
+  "repoRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a20-B",
+  "results": {
+    "group": {
+      "matches": 4,
+      "matrix": "group-save-backup",
+      "mismatches": 7,
+      "rowsWithMismatch": [
+        {
+          "differences": [
+            {
+              "field": "backups",
+              "gotavern": [],
+              "pinned": [
+                {
+                  "bytes": 237,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G3-new-group"
+        },
+        {
+          "differences": [
+            {
+              "field": "backups",
+              "gotavern": [],
+              "pinned": [
+                {
+                  "bytes": 237,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G4-matching-overwrite"
+        },
+        {
+          "differences": [
+            {
+              "field": "status",
+              "gotavern": 200,
+              "pinned": 400
+            },
+            {
+              "field": "bodyText",
+              "gotavern": "{\"ok\":true}",
+              "pinned": "{\"error\":\"integrity\"}"
+            },
+            {
+              "field": "chatFile",
+              "gotavern": {
+                "bytes": 226,
+                "exists": true,
+                "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+              },
+              "pinned": {
+                "bytes": 337,
+                "exists": true,
+                "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+              }
+            },
+            {
+              "field": "backups",
+              "gotavern": [],
+              "pinned": [
+                {
+                  "bytes": 237,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G5-mismatch"
+        },
+        {
+          "differences": [
+            {
+              "field": "chatFile",
+              "gotavern": {
+                "bytes": 226,
+                "exists": true,
+                "sha256": "df56349e7e582670750fcb98d254969bd7d733f404ee93ce7b51c448677bd7b0"
+              },
+              "pinned": {
+                "bytes": 337,
+                "exists": true,
+                "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+              }
+            },
+            {
+              "field": "backups",
+              "gotavern": [],
+              "pinned": [
+                {
+                  "bytes": 237,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+                },
+                {
+                  "bytes": 337,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G6-throttle-settled"
+        },
+        {
+          "differences": [
+            {
+              "field": "backups",
+              "gotavern": [],
+              "pinned": [
+                {
+                  "bytes": 237,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+                },
+                {
+                  "bytes": 337,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+                },
+                {
+                  "bytes": 225,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G7-force"
+        },
+        {
+          "differences": [
+            {
+              "field": "backupsAddedBeforeStop",
+              "gotavern": 0,
+              "pinned": 1
+            },
+            {
+              "field": "backupsFlushedAcrossExit",
+              "gotavern": 0,
+              "pinned": 1
+            },
+            {
+              "field": "backups",
+              "gotavern": [],
+              "pinned": [
+                {
+                  "bytes": 237,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "33913302412628016e62b5cb4cb8f5c743d777f276373092a9af0070f15f6d1e"
+                },
+                {
+                  "bytes": 337,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "88d96598dd451ad6bc66eefb8d0ca4069034a86573fd4268eace280ab795b3cf"
+                },
+                {
+                  "bytes": 225,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "6c521bcd9937ca89311340f9d7cdbfaed127fc8c4d372c8f1f69920c851e1580"
+                },
+                {
+                  "bytes": 228,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "ab604f97ded2b9e56608f29d3b1e3a81a226718e8fd8a9a02e4678985433f5f6"
+                },
+                {
+                  "bytes": 228,
+                  "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                  "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G8-flush-on-close"
+        },
+        {
+          "differences": [
+            {
+              "field": "retention",
+              "gotavern": [
+                {
+                  "backups": [],
+                  "index": 1,
+                  "kind": "group-chat",
+                  "status": 200
+                },
+                {
+                  "backups": [],
+                  "index": 2,
+                  "kind": "group-chat",
+                  "status": 200
+                },
+                {
+                  "backups": [],
+                  "index": 3,
+                  "kind": "group-chat",
+                  "status": 200
+                },
+                {
+                  "backups": [
+                    {
+                      "bytes": 237,
+                      "name": "chat_a20diff_<TS>.jsonl",
+                      "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+                    }
+                  ],
+                  "index": 4,
+                  "kind": "character-chat",
+                  "status": 200
+                }
+              ],
+              "pinned": [
+                {
+                  "backups": [
+                    {
+                      "bytes": 228,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "66600697b811e3549442ae724d8aae048eef0c25103c4e4de1c280f1e4905367"
+                    },
+                    {
+                      "bytes": 236,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+                    }
+                  ],
+                  "index": 1,
+                  "kind": "group-chat",
+                  "status": 200
+                },
+                {
+                  "backups": [
+                    {
+                      "bytes": 236,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "74a8ab3fe93eb202f436b54df3a55e96ceacbff585ff8306b354cb6f929dd1b7"
+                    },
+                    {
+                      "bytes": 236,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+                    }
+                  ],
+                  "index": 2,
+                  "kind": "group-chat",
+                  "status": 200
+                },
+                {
+                  "backups": [
+                    {
+                      "bytes": 236,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "91d3d5d68e1f9b796e79ef22762158e4b340e6d94f0b30ee703682f866d188a1"
+                    },
+                    {
+                      "bytes": 236,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+                    }
+                  ],
+                  "index": 3,
+                  "kind": "group-chat",
+                  "status": 200
+                },
+                {
+                  "backups": [
+                    {
+                      "bytes": 236,
+                      "name": "chat_a20_diff_group_1_<TS>.jsonl",
+                      "sha256": "aa5a8eed14288302fe1752d28c8940bb1d7206e83d492aeaebb43c94cf83d99a"
+                    },
+                    {
+                      "bytes": 237,
+                      "name": "chat_a20diff_<TS>.jsonl",
+                      "sha256": "c0442932a648f8c54481cd0de013c3089896726ebaca50f7ec0cf12f4d1803b1"
+                    }
+                  ],
+                  "index": 4,
+                  "kind": "character-chat",
+                  "status": 200
+                }
+              ]
+            }
+          ],
+          "match": false,
+          "scenario": "G10-retention-shared-quota"
+        }
+      ],
+      "scenarios": 11,
+      "verdict": "DIFFERENT"
+    }
+  },
+  "schemaVersion": 1,
+  "startedAt": "2026-11-10T02:18:19.142Z",
+  "unproven": [],
+  "verdict": "DIFFERENT",
+  "verdicts": []
+}

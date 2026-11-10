@@ -248,8 +248,13 @@ export async function makeClient(baseURL) {
 
 /** Writes one probe's evidence document, sorted for stable diffs. */
 export async function writeEvidence(probeName, document) {
+    return writeDocument(probeName, 'evidence.json', document);
+}
+
+/** Writes an additional document (e.g. differential.json) into the probe's evidence directory. */
+export async function writeDocument(probeName, filename, document) {
     const dir = await ensureDir(path.join(EVIDENCE_ROOT, probeName));
-    const file = path.join(dir, 'evidence.json');
+    const file = path.join(dir, filename);
     const stable = stableStringify(document);
     await fsp.writeFile(file, stable + '\n', 'utf8');
     return { file, dir };
