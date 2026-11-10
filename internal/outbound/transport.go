@@ -220,9 +220,14 @@ func buildProductionClient(config *tls.Config) *http.Client {
 		Transport: transport,
 		// PINNED'S REDIRECT CONTRACT (node-fetch 3.3.2, the client pinned's provider traffic runs on):
 		//
-		//   - follow default 20 (node_modules/node-fetch/src/request.js:134; the branch rejects when
-		//     counter >= follow at src/index.js:178). A fixed limit of 5 was OUR number, not pinned's,
-		//     so a CDN chain longer than four hops failed where pinned succeeds.
+		//   - follow default 20 (node_modules/node-fetch/src/request.js:134). The pinned branch rejects
+		//     when `request.counter >= request.follow` (src/index.js:178) and increments counter when a
+		//     redirect is FOLLOWED (src/index.js:189), so the condition first holds on the response to
+		//     the 21st request: exactly TWENTY redirects are followed. Go's via slice has length N before
+		//     following redirect N, so the equivalent bound is `len(via) > 20`; `>=` followed only 19 and
+		//     a 20-hop provider/CDN chain failed where pinned succeeds (alpha.20 audit A20-C, measured
+		//     against the pinned package: node-fetch issued 21 requests and refused the 21st redirect,
+		//     this transport issued 20). A fixed limit of 5 was an even older OUR number.
 		//   - sensitive headers (authorization, www-authenticate, cookie, cookie2) are deleted when the
 		//     destination is not the same domain/subdomain OR not the same PROTOCOL
 		//     (src/index.js:200-213 with utils/is.js). net/http only compares hostnames
@@ -230,8 +235,8 @@ func buildProductionClient(config *tls.Config) *http.Client {
 		//     https->http redirect hands the bearer token to the plaintext target where pinned removes
 		//     it. That is a parity difference and a credential leak.
 		CheckRedirect: func(next *http.Request, via []*http.Request) error {
-			if len(via) >= productionRedirectLimit {
-				return fmt.Errorf("provider redirected %d times; giving up", len(via))
+			if len(via) > productionRedirectLimit {
+				return fmt.Errorf("provider redirected %d times; giving up", len(via)-1)
 			}
 			if len(via) > 0 && via[0].URL != nil && next.URL != nil && via[0].URL.Scheme != next.URL.Scheme {
 				for _, name := range pinnedRedirectSensitiveHeaders {
