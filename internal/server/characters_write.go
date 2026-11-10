@@ -401,9 +401,12 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	// characters.js:1131-1132 — "Bust cache to reload the new avatar", in the `request.file` branch only
-	// (the avatar image was replaced) and before response.sendStatus(200).
+	// characters.js:1127-1132 — only the `request.file` branch replaces the avatar image, and pinned
+	// invalidates the cached avatar thumbnail there; the cache buster is the browser half of the same
+	// intent. Both are skipped when no file was uploaded, so an ordinary text edit does not touch the
+	// thumbnail.
 	if parsed.stagedPath != "" {
+		invalidateCharacterThumbnail(directories, avatarURL)
 		runtime.cacheBuster.bust(w, request)
 	}
 	httpx.WriteStatusText(w, http.StatusOK)
@@ -469,8 +472,9 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	// characters.js:1172-1173 — "Reset images caches", after the temp file is removed and before
-	// response.sendStatus(200).
+	// characters.js:1172-1174 — "Reset images caches" (browser half) plus the cached-avatar-thumbnail
+	// invalidation (server half), after the temp file is removed and before response.sendStatus(200).
+	invalidateCharacterThumbnail(directories, avatarURL)
 	runtime.cacheBuster.bust(w, request)
 	httpx.WriteStatusText(w, http.StatusOK)
 }
@@ -866,6 +870,9 @@ func (runtime *accountRuntime) serveCharactersDelete(w http.ResponseWriter, requ
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
+	// characters.js:1431-1432 — pinned invalidates the avatar thumbnail right after unlinking the card,
+	// so a card later created under the same name cannot inherit the deleted character's thumbnail.
+	invalidateCharacterThumbnail(directories, avatarURL)
 	dirName := strings.Replace(avatarURL, ".png", "", 1)
 	if dirName == "" {
 		httpx.WriteStatusText(w, http.StatusForbidden)
