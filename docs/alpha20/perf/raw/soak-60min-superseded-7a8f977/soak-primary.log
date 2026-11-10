@@ -1,0 +1,20 @@
+A18 soak: 60 min at ~8 req/s, restart every 10 min, 9 route shapes
+  binary:    C:\Users\koishi\AppData\Local\Temp\a20\soak-7a8f977\gotavern.exe
+  data root: C:\Users\koishi\AppData\Local\Temp\a20\soak-7a8f977\tree-primary\data (1001 cards, 2410 files, 48675577 bytes)
+  card:      A15 Character.png (chat routes) | probe card: A15 Card 00000.png | real chat: A15 Chat 0000 | saved chat: A18 Soak
+A18 SOAK SUMMARY
+  run:        60.007 min measured (planned 60), ended by deadline
+  requests:   21946 attempted, 21946 ok, 0 errors
+  rate:       6.095 req/s achieved of 8 target; 1087 resync events; one request in flight
+  latency:    p50 46.33ms p95 557.79ms p99 707.78ms max 2230.71ms (n=21946)
+  rss:        peak 106.7MB; seg0 69.4MB->84.3MB (41 samples, slope 908702 B/min); seg1 21.0MB->81.6MB (42 samples, slope 2221327 B/min); seg2 21.3MB->93.8MB (42 samples, slope 2231995 B/min); seg3 21.4MB->93.0MB (42 samples, slope 1734001 B/min); seg4 21.3MB->89.3MB (42 samples, slope 1824857 B/min); seg5 21.3MB->90.6MB (43 samples, slope 1260664 B/min)
+  leak:       UNPROVEN (RSS-only; live heap vs allocator growth is not separable from outside)
+  cpu:        user 559.01s system 293.39s
+  restarts:   5 (stop: taskkill /T refused (exit 128: ERROR: The process with PID 14388 (child process of PID 14864) could not be terminated. Reason: This process can only be terminated forcefully (with /F option).); forced with taskkill /T /F | taskkill /T refused (exit 128: ERROR: The process with PID 13744 (child process of PID 11020) could not be terminated. Reason: This process can only be terminated forcefully (with /F option).); forced with taskkill /T /F | taskkill /T refused (exit 128: ERROR: The process with PID 12952 (child process of PID 9088) could not be terminated. Reason: This process can only be terminated forcefully (with /F option). ); forced with taskkill /T /F | taskkill /T refused (exit 128: ERROR: The process with PID 15104 (child process of PID 14796) could not be terminated. Reason: This process can only be terminated forcefully (with /F option).); forced with taskkill /T /F | taskkill /T refused (exit 128: ERROR: The process with PID 14180 (child process of PID 12712) could not be terminated. Reason: This process can only be terminated forcefully (with /F option).); forced with taskkill /T /F)
+  integrity:  saved-chat 6/6 checks passed; fixture chat unchanged=true; probe card bytes unchanged=true
+  ext-mod:    59/59 probes ok (utimes on A15 Card 00000.png + POST /api/characters/all)
+  availability: 239/239 GET /version checks ok
+  data root:  2411 files / 48675804 bytes (delta 1 files / 227 bytes)
+  created:    1 file(s): default-user/chats/A15 Character/A18 Soak.jsonl
+  orphans:    none (tasklist finds no process running this binary after the final stop)
+  artifact:   C:\Users\koishi\AppData\Local\Temp\a20\soak-7a8f977\soak-primary.json

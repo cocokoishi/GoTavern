@@ -1,0 +1,7 @@
+GoTavern 0.0.0-dev (SillyTavern 1.19.0 baseline, 06bde939fb1e9c4c8d8641d810f0a916b5bce127)
+Install root: C:\Users\koishi\AppData\Local\Temp\a20\soak-7a8f977
+Config file:  C:\Users\koishi\AppData\Local\Temp\a20\soak-7a8f977\tree\config.yaml
+Data root:    C:\Users\koishi\AppData\Local\Temp\a20\soak-7a8f977\tree\data
+GoTavern is listening on IPv4: 127.0.0.1:18861
+Go to: http://127.0.0.1:18861/ to open GoTavern
+Ready: GoTavern is serving at http://127.0.0.1:18861/
