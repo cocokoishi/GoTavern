@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "surface": "m5-eight-users",
+  "question": "With eight accounts writing settings, reading settings and saving chats concurrently, does every write stay whole and isolated, and what are the per-route latency and throughput cost rows?",
+  "mode": "product",
+  "environment": {
+    "surface": "m5-eight-users",
+    "harness": "tests/perf/m5-eight-users.mjs",
+    "commit": null,
+    "workflow": null,
+    "job": null,
+    "runId": null,
+    "runAttempt": null,
+    "event": "local",
+    "nodeVersion": "v24.19.0",
+    "platform": "win32",
+    "arch": "arm64",
+    "osRelease": "10.0.26100",
+    "cpuModel": "virt-7.2",
+    "logicalCores": 2,
+    "totalMemoryBytes": 12879790080,
+    "gomaxprocs": {
+      "value": null,
+      "reason": "null means the subject was not given GOMAXPROCS, so Go defaults it to the runner CPU count; the artifact records that rather than inventing a value"
+    },
+    "loadLabel": null,
+    "binary": {
+      "path": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\gotavern-after.exe",
+      "sha256": "81cf0dc8cbb2faf78ac149243d5173f5dcb46d81de2b69037f7565634c33a9c3",
+      "sizeBytes": 60913664,
+      "version": {}
+    },
+    "startedAt": "2026-11-10T02:52:33.579Z",
+    "disk": {
+      "ok": true,
+      "method": "open+write+fsync+close+unlink of bodyBytes on the work-root filesystem, synchronous, once before boot",
+      "bytes": 49152,
+      "count": 12,
+      "p50": 3.28376,
+      "p95": 4.08208,
+      "max": 4.08208,
+      "samples": [
+        3.737,
+        3.159,
+        3.038,
+        3.407,
+        3.089,
+        3.108,
+        3.284,
+        3.255,
+        3.318,
+        4.082,
+        3.362,
+        3.614
+      ]
+    },
+    "subject": {
+      "bootMs": 295,
+      "pkgVersion": "1.19.0",
+      "versionRequiresLogin": true,
+      "installRoot": "$WORK/install",
+      "dataRoot": "$WORK/data"
+    }
+  },
+  "parameters": {
+    "users": 8,
+    "waves": 6,
+    "bodyBytes": 49152,
+    "routes": [
+      "/api/settings/save",
+      "/api/settings/get",
+      "/api/chats/save"
+    ],
+    "requestTimeoutMs": 30000,
+    "maxSeconds": 180,
+    "stopMode": "abrupt-windows"
+  },
+  "thresholds": null,
+  "results": {
+    "handles": [
+      "m5user0",
+      "m5user1",
+      "m5user2",
+      "m5user3",
+      "m5user4",
+      "m5user5",
+      "m5user6",
+      "m5user7"
+    ],
+    "provisionMs": 12667,
+    "waves": 6,
+    "operations": 144,
+    "wallMs": 4250,
+    "throughputOpsPerSec": 33.882,
+    "routes": {
+      "settingsSave": {
+        "count": 48,
+        "min": 163.694,
+        "p50": 538.69744,
+        "median": 540.7014,
+        "p95": 737.27208,
+        "p99": 795.58488,
+        "max": 795.58488
+      },
+      "settingsGet": {
+        "count": 48,
+        "min": 164.52056,
+        "p50": 410.9692,
+        "median": 415.01316,
+        "p95": 554.49608,
+        "p99": 567.2074,
+        "max": 567.2074
+      },
+      "chatsSave": {
+        "count": 48,
+        "min": 90.17212,
+        "p50": 473.27268,
+        "median": 482.70336,
+        "p95": 667.83548,
+        "p99": 706.88492,
+        "max": 706.88492
+      }
+    },
+    "errorRate": 0,
+    "isolationChecks": [
+      {
+        "name": "isolation/disk-and-cross-user",
+        "ok": true,
+        "detail": "8 accounts, own markers present, no cross-user marker"
+      }
+    ],
+    "perUser": [
+      {
+        "handle": "m5user0",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user1",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user2",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user3",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user4",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user5",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user6",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      },
+      {
+        "handle": "m5user7",
+        "settingsBytes": 49245,
+        "chatMessages": 2
+      }
+    ],
+    "lastMarkers": {
+      "m5user0": {
+        "settings": "M5_MARK_SETTINGS_m5user0_6",
+        "chat": "M5_MARK_CHAT_m5user0_6"
+      },
+      "m5user6": {
+        "settings": "M5_MARK_SETTINGS_m5user6_6",
+        "chat": "M5_MARK_CHAT_m5user6_6"
+      },
+      "m5user2": {
+        "settings": "M5_MARK_SETTINGS_m5user2_6",
+        "chat": "M5_MARK_CHAT_m5user2_6"
+      },
+      "m5user1": {
+        "settings": "M5_MARK_SETTINGS_m5user1_6",
+        "chat": "M5_MARK_CHAT_m5user1_6"
+      },
+      "m5user5": {
+        "settings": "M5_MARK_SETTINGS_m5user5_6",
+        "chat": "M5_MARK_CHAT_m5user5_6"
+      },
+      "m5user4": {
+        "settings": "M5_MARK_SETTINGS_m5user4_6",
+        "chat": "M5_MARK_CHAT_m5user4_6"
+      },
+      "m5user3": {
+        "settings": "M5_MARK_SETTINGS_m5user3_6",
+        "chat": "M5_MARK_CHAT_m5user3_6"
+      },
+      "m5user7": {
+        "settings": "M5_MARK_SETTINGS_m5user7_6",
+        "chat": "M5_MARK_CHAT_m5user7_6"
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "boot/auth-readiness",
+      "ok": true,
+      "detail": "the subject served the public GET /csrf-token route and the pinned version record was read through the seeded default-user admin session; with enableUserAccounts: true both implementations gate /version behind requireLoginMiddleware (pinned oracle unauthenticatedVersion = 403 \"Forbidden\"), so this is the row's documented auth contract rather than a boot failure"
+    },
+    {
+      "name": "write/status",
+      "ok": true,
+      "detail": "144 request(s), 0 non-200"
+    },
+    {
+      "name": "isolation/disk-and-cross-user",
+      "ok": true,
+      "detail": "8 accounts, own markers present, no cross-user marker"
+    },
+    {
+      "name": "isolation/read-own",
+      "ok": true,
+      "detail": "8 accounts served their own document"
+    }
+  ],
+  "unproven": [
+    "absolute numbers are comparable only within one runner image AND one host-storage class; the report carries the runner fingerprint and a sync-write disk fingerprint, and a threshold run refuses a cross-host comparison by name (threshold/host-disk) instead of grading the routes",
+    "delete/rename/import were not driven: this row is the write/load/isolation cost row, not E06 in full",
+    "no latency threshold was asserted unless `thresholds` is non-null (see docs/alpha16/m5-measurement-plan.md)"
+  ],
+  "ok": true,
+  "failure": null,
+  "finishedAt": "2026-11-10T02:52:53.986Z",
+  "wallMs": 20361
+}
