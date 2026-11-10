@@ -1,32 +1,35 @@
 # alpha.20 audit ledger
 
 One row per investigated defect. `CONFIRMED` means reproduced with a real reproducer; `FIXED` means the fix
-is on `main` and the RED/GREEN evidence exists in the commit. Unverified suspicions live in the working
-notes, never here. Severity: Critical / High / Medium / Low.
+is on `main` and RED/GREEN evidence exists in the commit (and in the linked record). Unverified suspicions
+live in working notes, never here. Severity: Critical / High / Medium / Low.
 
-| ID | Severity | Area | State | Evidence |
+| ID | Severity | Area | State | Record |
 |---|---|---|---|---|
-| A20-F001 | High | chats: `chat_metadata.integrity` not enforced on save | **FIXED** (`fb24983`) | [A20-F001](A20-F001-chat-integrity.md) |
-| A20-F002 | High | chats: group save never scheduled the pinned backup | **FIXED** (`fb24983`) | [A20-F002](A20-F002-group-save-backup.md) |
-| A20-F003 | High | SD/text-completion: socket-close interrupt fired after every completed request | **FIXED** (`188b34d`, author: source-audit lane) | [A20-F003](A20-F003-socket-close-interrupt.md) |
-| A20-F004 | Medium | userdata: `sanitize-filename` replacement mode diverges (COM0/LPT0, reserved-name replacement, trailing dot+space) | CONFIRMED, fix in progress (`a20/audit`) | source-audit lane report |
+| A20-A | High | SD/text-completion: socket-close interrupt fired after every completed request | **FIXED** (`188b34d`, source-audit lane) | [A20-A](A20-A.md) |
+| A20-B | Medium | userdata: `sanitize-filename` replacement mode diverged (COM0/LPT0, reserved-name replacement, trailing dot+space) | **FIXED** (`134500d`, source-audit lane) | [A20-B](A20-B.md) |
+| A20-C | Low | outbound: provider transport followed 19 redirects where node-fetch follows 20 | **FIXED** (`60ed139`, source-audit lane) | [A20-C](A20-C.md) |
+| A20-D | High | chats: `chat_metadata.integrity` not enforced on save | **FIXED** (`fb24983`, Lead) | [A20-D](A20-D-chat-integrity.md) |
+| A20-E | High | chats: group save never scheduled the pinned backup | **FIXED** (`fb24983`, Lead) | [A20-E](A20-E-group-save-backup.md) |
 
 ## Candidate observations not promoted to findings
 
 - `TestAccountResetInterleavedWithSavesDoesNotCorruptOrCrossUserData` failed once in a full-package run
   (`TempDir RemoveAll cleanup: The directory is not empty`) under two co-tenant CPU-heavy lanes, and passes
   in isolation (`ok 47.3s`). Classified as the known harness cleanup race documented in
-  `docs/alpha19/findings/reset-save-test-flake.md`; no data-safety assertion failed. If it fails again
-  without co-tenant load it gets promoted and fixed.
-- `internal/server/access_log.go` knownIPs growth: inherited pinned behaviour; being evaluated as an
+  `docs/alpha19/findings/reset-save-test-flake.md`; no data-safety assertion failed. Promoted only if it
+  reproduces without co-tenant load.
+- `internal/server/access_log.go` knownIPs growth: inherited pinned behaviour; recorded as an
   inherited-property note rather than a defect (source-audit lane).
+- All-JSON-GET `304` class: being MEASURED before any change; alpha.19 fixed four browser-visible routes and
+  the rest are documented partial. No mass change without per-route Express evidence (source-audit lane).
 
-## Closed M1 gaps (not defects, feature parity)
+## Closed M1 gaps (feature parity decisions, not defects)
 
 | Item | Decision | Record |
 |---|---|---|
-| `chat_metadata.integrity` + `force` | implemented | A20-F001 |
-| group-save backup scheduling | implemented | A20-F002 |
-| Brotli response negotiation | keep the exact disclosed difference (decoded bytes identical; new pure-Go dependency + outbound decoder outranks the benefit); cost recorded from real captures | `docs/alpha20/decision-log.md` D-02 |
-| `_cache/characters` read/write cache | keep verify-only parity (derived cache, second persistent store forbidden, measured startup cost is the verify pass); record format evidence kept | D-03 |
-| dominantColor ±1 / 26 normalisations / 6 notCompared | re-decided at M1: keep the named normalisations, no comparator widening; see oracle lane report | `docs/alpha20/oracle/` |
+| `chat_metadata.integrity` + `force` | implemented | A20-D |
+| group-save backup scheduling | implemented | A20-E |
+| Brotli response negotiation | keep the exact disclosed difference (decoded bytes identical on all probed resources; a new pure-Go dependency + outbound decoder outranks the benefit); measured cost recorded | `docs/alpha20/decision-log.md` D-02, oracle lane `docs/alpha20/oracle/encoding/` |
+| `_cache/characters` read/write cache | keep verify-only parity (derived cache, second persistent store forbidden, measured startup cost is the verify pass); pinned record format evidence kept for a later round | D-03, oracle lane `docs/alpha20/oracle/character-cache/` |
+| dominantColor ±1 / 26 normalisations / 6 notCompared | re-decided at M1: keep the named normalisations, no comparator widening | oracle lane report |

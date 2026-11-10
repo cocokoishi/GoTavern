@@ -1,4 +1,4 @@
-# A20-F001: `chat_metadata.integrity` was not enforced on chat save
+# A20-D: `chat_metadata.integrity` was not enforced on chat save
 
 - **Severity:** High (silent overwrite of a chat another client changed).
 - **State:** FIXED (`fb24983`), tests `TestA20ChatIntegrity*`, mutation-verified.

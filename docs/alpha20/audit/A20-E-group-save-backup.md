@@ -1,4 +1,4 @@
-# A20-F002: group save never scheduled the pinned chat backup
+# A20-E: group save never scheduled the pinned chat backup
 
 - **Severity:** High for user safety expectations of the backup feature (a group conversation was saved but
   never backed up by the auto-backup contract; the 1:1 path was backed up, so the gap was invisible until a
