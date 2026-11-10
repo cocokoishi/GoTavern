@@ -111,6 +111,15 @@ fi
 #                     with before/after profiles. Its own 14-gate same-SHA wave, the published archive checksums,
 #                     the unpacked-binary data request and the container digest verification are the qualification.
 #
+#   v0.1.0-alpha.20   the SOURCE-AUDIT AND PERFORMANCE release: three evidence-backed product fixes found by
+#                     reading the real source (the socket-close interrupt fired after every completed SD request;
+#                     sanitize-filename's two-pass replacement mode; node-fetch's 20th redirect), the pinned
+#                     chat_metadata.integrity check and group-save backup schedule implemented, profile-driven
+#                     production performance work with fair ABBA evidence, a shorter README and a rebuilt honest
+#                     performance figure, and a strengthened live oracle. Its own same-SHA wave, the published
+#                     archive checksums, the unpacked-binary data request and the container digest verification are
+#                     the qualification.
+#
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
 # v0.1.0-alpha.190, v0.1.0-alpha.180, v0.1.0-alpha.18-rc1, v0.1.0-alpha.18+build.1, v0.1.0-alpha.170,
 # v0.1.0-alpha.17-rc1, v0.1.0-alpha.17+build.1, v0.1.0-alpha.160,
@@ -122,7 +131,7 @@ fi
 # graduating an unqualified tag. Each entry is added by its own commit that cites the qualification evidence for
 # that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17 v0.1.0-alpha.18 v0.1.0-alpha.19'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17 v0.1.0-alpha.18 v0.1.0-alpha.19 v0.1.0-alpha.20'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then
