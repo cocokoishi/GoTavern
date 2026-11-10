@@ -423,11 +423,18 @@ func chatPayload(t *testing.T, messages []map[string]any) []byte {
 
 func saveBody(t *testing.T, fileName string, messages []map[string]any, force ...bool) string {
 	t.Helper()
-	encoded, err := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"avatar_url": crashAvatar + ".png",
 		"file_name":  fileName,
 		"chat":       messages,
-	})
+	}
+	// A scenario that deliberately replaces chat_metadata.integrity must take the
+	// pinned FORCED overwrite path; without force pinned answers 400 {"error":"integrity"}
+	// (src/endpoints/chats.js:532-543, alpha.20 audit A20-D).
+	if len(force) > 0 && force[0] {
+		payload["force"] = true
+	}
+	encoded, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("encode the save body: %v", err)
 	}
