@@ -27,9 +27,10 @@ import (
 // still a recorded gap. See docs/compat-matrix.md and the chat-backup report.
 
 func registerChatRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
-	// The pinned module reads backups.chat.* once at load time, so this snapshot is
-	// taken once per handler construction (boot) and never per request.
-	backups := newChatBackupManager(chatBackupSettingsForOptions(options))
+	// The pinned module reads backups.chat.* once at load time, so this manager is
+	// created once per handler (in the account runtime constructor) and shared with
+	// the group-save route, exactly as pinned's one backupFunctions map is.
+	backups := accounts.backups()
 	// The pinned routes are POST-only, and Express answers any other method with
 	// the final 404 rather than a 405, so dispatch manually.
 	mux.HandleFunc("/api/chats/save", func(w http.ResponseWriter, r *http.Request) {
@@ -221,6 +222,23 @@ func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *ht
 		lines = append(lines, string(encoded))
 	}
 	// tryWriteFileSync creates the parent directory recursively before writing.
+	// The pinned integrity check runs BEFORE the write (trySaveChat lines 532-543),
+	// so a mismatch must leave the existing file byte-identical.
+	jsonlData := strings.Join(lines, "\n")
+	if backups.settings.checkIntegrity && !pinnedBodyForceTruthy(input) {
+		if slug, hasIntegrity := pinnedIntegritySlug(chat); hasIntegrity {
+			matches, integrityErr := pinnedChatIntegrityMatches(chatFilePath, slug)
+			if integrityErr != nil {
+				respondJSON(w, http.StatusInternalServerError,
+					map[string]string{"error": "An error has occurred, see the console logs for more information."})
+				return
+			}
+			if !matches {
+				respondJSON(w, http.StatusBadRequest, map[string]string{"error": "integrity"})
+				return
+			}
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(chatFilePath), 0o777); err != nil {
 		respondJSON(w, http.StatusInternalServerError,
 			map[string]string{"error": "An error has occurred, see the console logs for more information."})
@@ -235,7 +253,6 @@ func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *ht
 	faultinject.Hit("chats.save.before-write")
 	// The backup body is the exact jsonlData trySaveChat hands to writeFileAtomic:
 	// JSON.stringify per message joined with '\n', no trailing newline.
-	jsonlData := strings.Join(lines, "\n")
 	err = startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath,
 		func([]byte) ([]byte, error) {
 			return []byte(jsonlData), nil

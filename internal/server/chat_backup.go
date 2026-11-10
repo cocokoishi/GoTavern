@@ -89,6 +89,7 @@ type chatBackupSettings struct {
 	maxTotalBackups  float64
 	throttleInterval time.Duration
 	numberOfBackups  float64
+	checkIntegrity   bool
 }
 
 // chatBackupJob is one throttled invocation: the latest (directory, name, data) the
@@ -149,6 +150,17 @@ type chatBackupManager struct {
 // exactly one manager per handler construction.
 var chatBackupManagers sync.Map
 
+// backups is the one chat-backup manager for this handler. Pinned reads the four
+// backups.chat.* values once at module load, so the manager (and its config
+// snapshot) is created at handler construction and shared by the 1:1 and group save
+// routes. A zero accountRuntime, which tests construct directly, gets a default
+// manager on first use rather than a nil dereference.
+func (runtime *accountRuntime) backups() *chatBackupManager {
+	if runtime.backupManager == nil {
+		runtime.backupManager = newChatBackupManager(chatBackupSettingsForOptions(runtime.options))
+	}
+	return runtime.backupManager
+}
 func newChatBackupManager(settings chatBackupSettings) *chatBackupManager {
 	manager := &chatBackupManager{
 		settings: settings,
@@ -503,6 +515,7 @@ func chatBackupSettingsForOptions(options HTTPHandlerOptions) chatBackupSettings
 		maxTotalBackups:  chatBackupNumber(value("backups.chat.maxTotalBackups", chatBackupDefaultMaxTotalBackups), chatBackupDefaultMaxTotalBackups),
 		throttleInterval: chatBackupThrottle(chatBackupNumber(value("backups.chat.throttleInterval", chatBackupDefaultThrottleIntervalMilliseconds), chatBackupDefaultThrottleIntervalMilliseconds)),
 		numberOfBackups:  chatBackupNumber(value("backups.common.numberOfBackups", chatBackupDefaultNumberOfBackups), chatBackupDefaultNumberOfBackups),
+		checkIntegrity:   pinnedToBoolean(value("backups.chat.checkIntegrity", true)),
 	}
 }
 
