@@ -428,6 +428,41 @@ Rules:
 
 Copy migration is easier to roll back during initial evaluation; direct-use minimizes disk duplication.
 
+### 7.1 The drop-in recipe (the README's primary path since beta.1)
+
+The README leads with this form because it is the shortest working install for a SillyTavern user who already
+has a tree. It is direct-use mode with the binary placed OUTSIDE the config/data root it reads:
+
+1. stop the Node server (rule 1 above);
+2. extract the release archive to a temporary folder — do NOT extract it over the existing tree in place:
+   `Expand-Archive` refuses an existing `LICENSE`/`src/tokenizers/*` without `-Force`, and `-Force` would
+   overwrite the user's files;
+3. copy TWO things into the existing SillyTavern folder: the binary, and the archive's `src/tokenizers/`
+   contents. THIS IS NOT OPTIONAL: a stock SillyTavern `1.19.0` tree ships 9 of the 23 tokenizer files the
+   release carries, and a binary-only copy makes `gotavern assets verify` refuse (manifest 23 entries vs 9
+   files) while tokenizer routes that need the missing models silently answer an empty result
+   (`{"ids":[],"count":0,"chunks":[]}`) instead of failing. The supported layouts are
+   `<root>/src/tokenizers`, `<root>/tokenizers` and `<root>/upstream/tokenizers`; the pinned tree's layout is
+   the first;
+4. run the binary from that folder (`./gotavern` or `.\gotavern.exe`). It resolves its install root as the
+   directory containing the executable, so `config.yaml` and `data/` are the tree's own;
+5. run `./gotavern assets verify` (Windows: `.\gotavern.exe assets verify`). It must exit 0 and name the
+   tokenizers path it verified; a nonzero exit means the copy in step 3 did not land, and the tokenizer
+   routes will degrade silently if it is ignored.
+
+Observed first-start behaviour on a copy of pinned `1.19.0` (Windows/amd64, v0.1.0-beta.1 candidate): the
+existing `config.yaml` is read and left byte-identical, pre-existing data is untouched, and the first boot
+ADDS the pinned fresh-install scaffold to `data/` (profiles, themes, presets, default user data, seed content
+— 203 added files in the measurement, 0 modified, 0 deleted). A restart adds nothing further. The stock config
+opens a browser tab; pass `--browserLaunchEnabled false` to suppress it. The measurement record is
+[`docs/beta1/install-verification.md`](beta1/install-verification.md). The Windows path was executed
+end-to-end; the Linux/macOS path is the same two archive members and is layout-verified by the release gates,
+not executed on that host.
+
+To update: replace the binary (and re-copy `src/tokenizers/` if the new archive carries newer data); nothing
+else in the tree is replaced. To roll back, stop GoTavern and start Node SillyTavern against the same tree —
+the data formats are unchanged.
+
 ---
 
 ## 8. Updating GoTavern

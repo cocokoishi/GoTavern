@@ -15,10 +15,16 @@
 //     byte-compared twice (determinism), so neither variant can drift and the two cannot disagree about data;
 //   * the README and docs/performance.md performance tables are RECOMPUTED from it under one stated unit rule
 //     and compared cell by cell, so a unit mismatch cannot hide;
-//   * the README's first screen is checked STRUCTURALLY: figure pair through <picture>/prefers-color-scheme,
-//     alt text recomputed from the artifact, shortest install+start block, links to the detail, the synthetic
-//     scope and the unmet GOAL 14 claim in the same place as the claim, and no hardcoded release version;
-//   * NEW: README byte+line budget (10-14 KB, ~100-150 lines), stale release text refused (a known-stale
+//   * the README's first screen is checked STRUCTURALLY, and since `v0.1.0-beta.1` the contract is
+//     INSTALL-FIRST: a "## Install" heading before the "## Release status" boundary, the drop-in commands a
+//     user actually types (`chmod +x gotavern`, `./gotavern`, `.\gotavern.exe`), a link to the installation
+//     manual, and the synthetic scope plus the unmet GOAL 14 claim in the same place as the claim;
+//   * the README may not LAG the published release: it must name a release at least as new as the newest tag
+//     recorded in docs/generated/facts.json, and no first-screen version token may be older than that tag
+//     (measured defect on 2026-11-15: the README still said alpha.19 while alpha.20 was published, and the
+//     old rule compared it to a hardcoded alpha.19 default, so the gate passed the stale text);
+//   * the README byte+line budget keeps it a landing page (KB-scale, not a manual), the figure's alt text is
+//     recomputed from the artifact wherever the picture appears, stale release text is refused (a known-stale
 //     version token can never be called current), internal relative/anchor links must resolve, duplicate
 //     sections/paragraphs are refused, and the required regression disclosure must be present;
 //   * docs/performance.md must carry the artifact identity (run, full commit, rounds, samples, soak, units),
@@ -49,8 +55,10 @@
 //   node tools/check-perf-docs.mjs --baseline <q22-baseline.json> --readme <README.md> \
 //       --performance-doc <docs/performance.md> --svg <benchmark.svg> --svg-light <benchmark-light.svg> \
 //       --provenance <benchmark.svg.provenance.md> --baseline-doc <perf-baseline.md> \
-//       --generator <benchmark-svg.mjs> --release v0.1.0-alpha.<n> --root <repo root>
-//       # overrides are used by the negative-control tests on copies
+//       --generator <benchmark-svg.mjs> --release <newest published tag> --root <repo root>
+//       # --release overrides the newest tag derived from docs/generated/facts.json (the default source of
+//       # truth for "the newest published release"); the other overrides are used by the negative-control
+//       # tests on copies
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -77,19 +85,40 @@ const baselineDocPath = path.resolve(argument('--baseline-doc', path.join(ROOT, 
 const generatorPath = path.resolve(argument('--generator', path.join(ROOT, 'tools', 'benchmark-svg.mjs')));
 const alpha18Dir = path.join(ROOT, 'docs', 'alpha18');
 const perfLaneDir = path.join(alpha18Dir, 'perf');
-const RELEASE_VERSION = argument('--release', 'v0.1.0-alpha.19');
+// THE NEWEST PUBLISHED RELEASE IS A FACT ABOUT THE TREE, NOT A CONSTANT IN THIS FILE. It is read from the
+// generated facts (`scm.versionTags`, derived from `git tag`), so a README that advertises an older release
+// than the last published tag is refused. This is the measured defect class that produced the change: on
+// 2026-11-15 the README still said `v0.1.0-alpha.19` while `v0.1.0-alpha.20` was the published release, and
+// the old rule compared the README against this file's hardcoded `v0.1.0-alpha.19` default, so the gate PASSED
+// the stale text. `--release` remains an explicit override for the negative-control tests on copies.
+const factsPath = path.resolve(argument('--facts', path.join(ROOT, 'docs', 'generated', 'facts.json')));
+const releaseOverride = argument('--release', null);
 const RELEASES_LATEST = 'https://github.com/cocokoishi/GoTavern/releases/latest';
 // Known-stale release tokens: text that was true once and must never be presented as the current release.
 // It may still appear in a historical sentence ("was the previous release"), never as "current"/"latest".
 const STALE_VERSION_TOKENS = ['v0.1.0-alpha.13', 'alpha.13', 'v0.1.0-alpha.15', 'alpha.15'];
-const RELEASE_TOKEN_PATTERN = /\bv?0\.1\.0-alpha\.\d+\b|\balpha\.\d+\b/g;
-const README_BUDGET = { minBytes: 10000, maxBytes: 14000, minLines: 100, maxLines: 160, minNonBlank: 100, maxNonBlank: 150 };
+// A GoTavern release token: `v`-prefixed full versions plus the bare alpha/beta/rc series names a note may use.
+// The pinned upstream baseline ("1.19.0") is deliberately NOT a release token: it carries no `v` and no
+// prerelease suffix, and it is a constant of the product, not a release that can go stale.
+const RELEASE_TOKEN_PATTERN = /\bv\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?\b|\b(?:alpha|beta|rc)\.\d+\b/g;
+// THE README IS A LANDING PAGE, NOT A MANUAL (beta.1 contract). It must lead with install and link out; the
+// measured size at the beta.1 rewrite is ~7.8 KB / 104 lines. The ceiling is only ~15% above that: if the
+// README needs more room, the detail belongs in docs/. The floor keeps it from decaying into two lines that
+// cannot carry the compatibility scope this gate requires.
+const README_BUDGET = { minBytes: 6500, maxBytes: 9600, minLines: 80, maxLines: 140, minNonBlank: 55, maxNonBlank: 120 };
 // THE FIRST-SCREEN CHARACTER BUDGET (alpha.20). The README gate above constrains the WHOLE file, which let
 // the alpha.19 first screen grow to 11,170 characters (everything above "## Release status", newline-normalised,
 // measured at commit 7d1178e) while a reader had to scroll past a compatibility audit and an install manual
 // before seeing the product. alpha.20's contract is a >= 40% reduction of that measured baseline, so this
 // ceiling is 60% of it. Detail belongs below "## Release status" or in docs/, not in the first screen.
 const FIRST_SCREEN_BUDGET = { alpha19Characters: 11170, maxCharacters: 6702 };
+// THE DROP-IN INSTALL RECIPE IS THE FIRST SCREEN'S PRODUCT. These are the literal pieces the beta.1 README
+// documents for installing onto an existing SillyTavern: the archive, both platform entry points, the
+// tokenizer data the archive must bring (a stock SillyTavern tree carries 9 of the 23 files, so a
+// binary-only copy silently degrades tokenization -- measured, see docs/beta1/install-verification.md), and
+// the post-copy self-check. An independent end-to-end run executed the Windows recipe against a stock pinned
+// tree before the README claimed it. A gate that only looked for "install" would accept a link.
+const DROP_IN_COMMANDS = ['tar -xzf gotavern-linux-amd64.tar.gz', 'gotavern-windows-amd64.zip', 'src/tokenizers', 'assets verify'];
 
 const problems = [];
 function problem(assertion, file, line, message) {
@@ -269,7 +298,7 @@ function checkDuplicates(prefix, file, text) {
         if (count > 1) problem(`${prefix}-DUPLICATE-PARAGRAPH`, file, null, `paragraph appears ${count} times: ${JSON.stringify(paragraph.slice(0, 100))}...`);
     }
 }
-function checkVersionText(prefix, file, text) {
+function checkVersionText(prefix, file, text, newestTag = null) {
     if (text === null) return;
     const currentClaim = /\b(?:current|currently|latest|releases\/latest|:latest|serves|points at|stable release|stable-channel release)\b/i;
     const historical = /\b(?:previous|earlier|older|prior|superseded|was|history|historical)\b/i;
@@ -277,21 +306,82 @@ function checkVersionText(prefix, file, text) {
         for (const token of line.match(RELEASE_TOKEN_PATTERN) ?? []) {
             if (STALE_VERSION_TOKENS.includes(token)) {
                 problem(`${prefix}-STALE-VERSION`, file, index + 1, `contains the known-stale release token ${JSON.stringify(token)}; it may not appear on a current release surface`);
-            } else if (currentClaim.test(line) && !historical.test(line) && token !== RELEASE_VERSION) {
-                problem(`${prefix}-STALE-VERSION`, file, index + 1, `presents ${JSON.stringify(token)} with current/latest wording but the release this tree ships is ${JSON.stringify(RELEASE_VERSION)}`);
+            } else if (currentClaim.test(line) && !historical.test(line) && newestTag !== null && compareVersions(token, newestTag) < 0) {
+                problem(`${prefix}-STALE-VERSION`, file, index + 1, `presents ${JSON.stringify(token)} with current/latest wording, but the newest published release is ${JSON.stringify(newestTag)}; a release surface may not advertise an older release as current`);
             }
         }
     });
 }
 
+// ---- version ordering for the release-lag rule ---------------------------------------------------
+// The tags this repository publishes are plain three-component semver with an optional prerelease, so the
+// comparison only needs major/minor/patch plus the numeric-vs-alphanumeric prerelease rule semver defines
+// (`alpha.10` > `alpha.9`, `beta.1` > `alpha.99`, a release > any prerelease of the same version).
+function parseVersionToken(token) {
+    const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(token);
+    if (!match) return null;
+    return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]), prerelease: match[4] ? match[4].split('.') : [] };
+}
+function compareVersions(left, right) {
+    const a = parseVersionToken(left);
+    const b = parseVersionToken(right);
+    if (a === null || b === null) return 0;
+    for (const field of ['major', 'minor', 'patch']) {
+        if (a[field] !== b[field]) return a[field] < b[field] ? -1 : 1;
+    }
+    if (a.prerelease.length === 0 && b.prerelease.length === 0) return 0;
+    if (a.prerelease.length === 0) return 1;
+    if (b.prerelease.length === 0) return -1;
+    for (let index = 0; index < Math.max(a.prerelease.length, b.prerelease.length); index += 1) {
+        if (index >= a.prerelease.length) return -1;
+        if (index >= b.prerelease.length) return 1;
+        const x = a.prerelease[index];
+        const y = b.prerelease[index];
+        const xNumeric = /^\d+$/.test(x);
+        const yNumeric = /^\d+$/.test(y);
+        if (xNumeric && yNumeric) {
+            if (Number(x) !== Number(y)) return Number(x) < Number(y) ? -1 : 1;
+        } else if (xNumeric) {
+            return -1;
+        } else if (yNumeric) {
+            return 1;
+        } else if (x !== y) {
+            return x < y ? -1 : 1;
+        }
+    }
+    return 0;
+}
+// The newest PUBLISHED release, from the generated facts (derived from `git tag`, so the tag/commit used to
+// derive it cannot disagree with the release history). `--release` overrides it for the negative-control
+// tests. A tree without facts is REFUSED rather than silently passing: the rule this exists for cannot be
+// checked against nothing (AGENTS verification rule 7).
+function newestPublishedTag() {
+    if (releaseOverride !== null) {
+        if (parseVersionToken(releaseOverride) === null) {
+            problem('README-RELEASE-BASELINE', factsPath, null, `--release ${JSON.stringify(releaseOverride)} is not a version tag`);
+            return null;
+        }
+        return releaseOverride;
+    }
+    const facts = readJson(factsPath, 'README-RELEASE-BASELINE');
+    if (facts === null) return null;
+    const tags = facts?.scm?.versionTags;
+    if (!Array.isArray(tags) || tags.length === 0) {
+        problem('README-RELEASE-BASELINE', factsPath, null, 'carries no scm.versionTags, so the newest published release is unknown and the release-lag rule cannot run');
+        return null;
+    }
+    return tags.filter(tag => parseVersionToken(tag) !== null).reduce((newest, tag) => (newest === null || compareVersions(tag, newest) > 0 ? tag : newest), null);
+}
+
 // ---- README: length budget, release identity, links, duplicates ---------------------------------
+const newestTag = newestPublishedTag();
 const readme = readText(readmePath, 'README-READ');
 if (readme !== null) {
     const bytes = Buffer.byteLength(readme, 'utf8');
     const rawLines = readme.split('\n').length;
     const nonBlankLines = readme.split('\n').filter(line => /\S/.test(line)).length;
     if (bytes < README_BUDGET.minBytes || bytes > README_BUDGET.maxBytes) {
-        problem('README-BUDGET', readmePath, null, `is ${bytes} B; the first-screen release surface must stay between ${README_BUDGET.minBytes} and ${README_BUDGET.maxBytes} B (detail belongs in docs/performance.md)`);
+        problem('README-BUDGET', readmePath, null, `is ${bytes} B; the README must stay a landing page between ${README_BUDGET.minBytes} and ${README_BUDGET.maxBytes} B (detail belongs in docs/)`);
     }
     if (rawLines < README_BUDGET.minLines || rawLines > README_BUDGET.maxLines) {
         problem('README-BUDGET', readmePath, null, `has ${rawLines} raw lines; keep it between ${README_BUDGET.minLines} and ${README_BUDGET.maxLines}`);
@@ -299,19 +389,33 @@ if (readme !== null) {
     if (nonBlankLines < README_BUDGET.minNonBlank || nonBlankLines > README_BUDGET.maxNonBlank) {
         problem('README-BUDGET', readmePath, null, `has ${nonBlankLines} non-blank lines; keep it between ${README_BUDGET.minNonBlank} and ${README_BUDGET.maxNonBlank}`);
     }
-    expectContains('README-RELEASE-TOKEN', readmePath, readme, RELEASE_VERSION, 'the README must name the release this tree ships');
+    // THE RELEASE-LAG RULE. The README must name a release at least as new as the newest PUBLISHED tag; a
+    // candidate tag is allowed (and required) to be newer, which is how the Beta.1 download commands can be
+    // pinned in the first screen. A README naming only alpha.19 while alpha.20 is published is the measured
+    // defect this replaces: the old `expectContains(RELEASE_VERSION)` compared against a hardcoded default.
+    if (newestTag !== null) {
+        const named = (readme.match(RELEASE_TOKEN_PATTERN) ?? []).filter(token => parseVersionToken(token) !== null);
+        const newestNamed = named.reduce((newest, token) => (newest === null || compareVersions(token, newest) > 0 ? token : newest), null);
+        if (newestNamed === null) {
+            problem('README-RELEASE-CURRENT', readmePath, null, `names no release tag; the newest published release is ${JSON.stringify(newestTag)} and the README must name the release this tree ships`);
+        } else if (compareVersions(newestNamed, newestTag) < 0) {
+            problem('README-RELEASE-CURRENT', readmePath, lineOf(readme, newestNamed), `names ${JSON.stringify(newestNamed)} as its newest release, but ${JSON.stringify(newestTag)} is already published; the README may not lag the release history`);
+        }
+    }
     expectContains('README-RELEASES-LATEST', readmePath, readme, RELEASES_LATEST, 'the README must link the authoritative releases/latest page');
-    checkVersionText('README', readmePath, readme);
+    checkVersionText('README', readmePath, readme, newestTag);
     checkLinks('README-LINK', readmePath, readme, ROOT);
     checkDuplicates('README', readmePath, readme);
 }
 
 // ---- README: the FIRST SCREEN, checked structurally ----------------------------------------------
-// GOAL.md 15.6 fixes what a reader sees before scrolling: name and one-line description, one real performance
-// figure, the shortest install/start block, the compatibility state with known limits, and links to the detail.
-// A prose claim cannot be gated, but its STRUCTURE can: the boundary is the "## Release status" heading, and
-// everything before it is the first screen. The release history and the CI badges are deliberately below that
-// boundary, so a stale release version or a badge cannot creep back up into the first thing a reader sees.
+// THE CONTRACT SINCE `v0.1.0-beta.1` IS INSTALL-FIRST. GOAL.md 15.6 still fixes what a reader sees before
+// scrolling: the install path, and the compatibility scope with its limits. What beta.1 changed is WHICH path
+// leads: the product page opens with the drop-in binary a SillyTavern user can run over the tree they already
+// have, and pushes the manual, the release history and the CI badges below the "## Release status" boundary.
+// A prose claim cannot be gated, but its STRUCTURE can: the section exists above the boundary, the commands
+// are the literal ones an independent end-to-end run executed, the manual is linked, and the synthetic scope
+// and the unmet GOAL 14 claim sit beside the claim rather than in a separate document.
 if (readme !== null) {
     const lines = readme.split('\n');
     const firstScreenEnd = lines.findIndex(line => /^##\s+Release status\s*$/.test(line));
@@ -326,39 +430,20 @@ if (readme !== null) {
     if (firstScreenCharacters > FIRST_SCREEN_BUDGET.maxCharacters) {
         problem('README-FIRST-SCREEN-BUDGET', readmePath, firstScreenEnd < 0 ? null : firstScreenEnd + 1, `first screen is ${firstScreenCharacters} characters; the alpha.20 budget is ${FIRST_SCREEN_BUDGET.maxCharacters} (60% of the alpha.19 ${FIRST_SCREEN_BUDGET.alpha19Characters}-character first screen, a >=40% reduction). Move detail below the "## Release status" boundary or into docs/`);
     }
-    // (a) the ONE figure, in both variants, selected by GitHub's colour scheme.
-    if (!firstScreen.includes('<picture')) firstScreenProblem('README-FIGURE-PAIR', 'has no <picture> element, so the figure cannot be the one image of the first screen');
-    if (!firstScreen.includes('prefers-color-scheme')) firstScreenProblem('README-FIGURE-PAIR', 'does not choose the figure variant with prefers-color-scheme, so the dark/light pair cannot be selected by GitHub');
-    for (const variant of ['docs/assets/benchmark.svg', 'docs/assets/benchmark-light.svg']) {
-        if (!firstScreen.includes(variant)) firstScreenProblem('README-FIGURE-PAIR', `does not reference the figure variant ${variant} (both variants must be referenced, or one of them is unreachable)`);
+    // (a) INSTALL COMES FIRST: the section exists, and it is above the release-status boundary.
+    const installHeading = lines.findIndex(line => /^##\s+Install\s*$/.test(line));
+    if (installHeading < 0) {
+        firstScreenProblem('README-INSTALL-SECTION', 'has no "## Install" heading, so the product page does not lead with installation');
+    } else if (firstScreenEnd >= 0 && installHeading > firstScreenEnd) {
+        firstScreenProblem('README-INSTALL-SECTION', 'has its "## Install" heading below the "## Release status" boundary, so the first screen a reader sees does not carry the install path', installHeading + 1);
     }
-    // THE ALT TEXT IS A FIRST-SCREEN NUMBER SURFACE TOO, so it is recomputed like a table cell rather than trusted.
-    // Without this, the alt text would be the one place in the first screen where a hand-copied number could drift
-    // from the artifact (the defect class this gate exists to remove).
-    const imgAlt = /<img\b[^>]*\balt="([^"]*)"/.exec(firstScreen);
-    if (!imgAlt) {
-        firstScreenProblem('README-ALT-TEXT', 'has no <img alt="..."> inside the first screen, so the figure has no text alternative');
-    } else {
-        const altCells = [
-            { pinned: `${groupedInteger(summary.pinned.bootMsMedian)} ms`, go: `${groupedInteger(summary.gotavern.bootMsMedian)} ms`, ratio: formatRatio(summary.pinned.bootMsMedian / summary.gotavern.bootMsMedian), source: 'report.summary.*.bootMsMedian' },
-            { pinned: formatMB(summary.pinned.rssBytesMedian), go: formatMB(summary.gotavern.rssBytesMedian), ratio: formatRatio(summary.pinned.rssBytesMedian / summary.gotavern.rssBytesMedian), source: 'report.summary.*.rssBytesMedian' },
-            { pinned: `${formatMs(summary.pinned.versionMedianMs)} ms`, go: `${formatMs(summary.gotavern.versionMedianMs)} ms`, ratio: formatRatio(summary.pinned.versionMedianMs / summary.gotavern.versionMedianMs), source: 'report.summary.*.versionMedianMs' },
-            { pinned: `${summary.pinned.rootMedianMs.toFixed(2)} ms`, go: `${summary.gotavern.rootMedianMs.toFixed(2)} ms`, ratio: formatRatio(summary.pinned.rootMedianMs / summary.gotavern.rootMedianMs), source: 'report.summary.*.rootMedianMs' },
-        ];
-        for (const cells of altCells) {
-            for (const value of [cells.pinned, cells.go, cells.ratio]) {
-                if (!imgAlt[1].includes(value)) firstScreenProblem('README-ALT-TEXT-VALUE', `figure alt text does not carry ${JSON.stringify(value)} recomputed from ${cells.source}; a hand-copied number in the first screen can drift from the recorded artifact`);
-            }
-        }
+    // (b) THE DROP-IN COMMANDS, literally, not a link to them. Each is a command the beta.1 end-to-end
+    // verification executed against a stock pinned tree; a README that only says "download and run" fails.
+    for (const command of DROP_IN_COMMANDS) {
+        if (!firstScreen.includes(command)) firstScreenProblem('README-START-BLOCK', `does not carry the drop-in install command ${JSON.stringify(command)}; the shortest path must be in the first screen, not behind a link`);
     }
-    // (b) the shortest install+start block, on both platforms, not a link to it.
-    for (const command of ['install.sh', './start.sh', 'install.ps1', '.\\Start.cmd']) {
-        if (!firstScreen.includes(command)) firstScreenProblem('README-START-BLOCK', `does not carry the shortest start block: it is missing ${JSON.stringify(command)}`);
-    }
-    // (c) links to the detail, by anchor, so the first screen cannot become a dead end.
-    for (const anchor of ['(#performance)', '(#compatibility)', '(#install)']) {
-        if (!firstScreen.includes(anchor)) firstScreenProblem('README-FIRST-SCREEN-LINKS', `does not link the detailed section ${anchor}`);
-    }
+    // (c) the manual is linked, so the first screen is not a dead end for the platform matrix and preflight.
+    if (!firstScreen.includes('(docs/INSTALLATION.md)')) firstScreenProblem('README-FIRST-SCREEN-LINKS', 'does not link (docs/INSTALLATION.md), the installation manual');
     // (d) THE HONESTY REQUIREMENT, as a structure: the claim and its scope in the same place. GOAL.md 14 says the
     // strong form is NOT MET today and that any document calling the product drop-in must state which of its
     // evidence items have run. The first screen must therefore name GOAL.md, say the claim is not met, and say the
@@ -370,16 +455,59 @@ if (readme !== null) {
     ]) {
         if (!firstScreen.toLowerCase().includes(needle.toLowerCase())) firstScreenProblem('README-FIRST-SCREEN-SCOPE', `does not contain ${JSON.stringify(needle)} (${why})`);
     }
-    // (e) no GoTavern release version in the first screen: a release tag there is a number that goes stale on
-    // every release, and the release history has its own section below. The pinned upstream baseline ("1.19.0")
-    // is a deliberate constant, not a GoTavern release, so it does not match this pattern.
-    const releaseVersion = /\bv?0\.\d+\.\d+(?:-[0-9A-Za-z.]+)?|\balpha\.\d+\b/.exec(firstScreen);
-    if (releaseVersion) firstScreenProblem('README-FIRST-SCREEN-VERSION', `contains a hardcoded GoTavern release version ${JSON.stringify(releaseVersion[0])}; release history belongs below the first screen`, lineOf(firstScreen, releaseVersion[0]));
+    // (e) NO RELEASE OLDER THAN THE PUBLISHED ONE IN THE FIRST SCREEN. A first-screen tag is legal only when it
+    // is the release this tree ships -- the candidate, which is newer than the newest published tag -- which is
+    // what lets a version-pinned Beta download command live here. An OLDER token is exactly the drift this rule
+    // exists for, and a version token that arrives with current/latest wording is also refused.
+    if (newestTag !== null) {
+        for (const match of firstScreen.matchAll(RELEASE_TOKEN_PATTERN)) {
+            const token = match[0];
+            if (parseVersionToken(token) === null) continue;
+            if (compareVersions(token, newestTag) < 0) {
+                firstScreenProblem('README-FIRST-SCREEN-VERSION', `contains ${JSON.stringify(token)}, older than the published ${JSON.stringify(newestTag)}; release history belongs below the first screen`, lineOf(firstScreen, token));
+            }
+        }
+    }
     // Wording rule, whole document: the strong claim is not demonstrated, so no surface may say the product is
     // perfectly compatible. The word "drop-in" stays available because the README uses it as the NAME of the
     // release qualification gates, which is what they are called.
     const perfect = /perfect(?:ly)?[\s-]*compatib/i.exec(readme);
     if (perfect) problem('README-WORDING', readmePath, lineOf(readme, perfect[0]), `claims ${JSON.stringify(perfect[0])}; GOAL.md 14's strong claim is not met, so compatibility wording must carry its scope`);
+}
+
+// ---- README: the one figure, wherever it appears -------------------------------------------------
+// Install leads in beta.1, so the figure lives in "## Performance" instead of the first screen. Its structural
+// checks follow the picture rather than assuming its position: exactly one <picture> block (one image, one alt
+// text), both variants reachable through prefers-color-scheme, no element GitHub strips, the natural width,
+// and alt-text numbers recomputed from the recorded artifact (the alt text is a number surface too).
+if (readme !== null) {
+    const pictureBlocks = [...readme.matchAll(/<picture>[\s\S]*?<\/picture>/g)];
+    if (pictureBlocks.length !== 1) {
+        problem('README-FIGURE-PAIR', readmePath, null, `has ${pictureBlocks.length} <picture> block(s); the README must carry exactly ONE figure so its image and alt text have one home`);
+    } else {
+        const picture = pictureBlocks[0][0];
+        if (!picture.includes('prefers-color-scheme')) problem('README-FIGURE-PAIR', readmePath, null, 'the figure does not choose its variant with prefers-color-scheme, so the dark/light pair cannot be selected by GitHub');
+        for (const variant of ['docs/assets/benchmark.svg', 'docs/assets/benchmark-light.svg']) {
+            if (!picture.includes(variant)) problem('README-FIGURE-PAIR', readmePath, null, `the figure does not reference the variant ${variant} (both variants must be referenced, or one of them is unreachable)`);
+        }
+        if (!/<img\b[^>]*\bwidth="1200"/.test(picture)) problem('README-FIGURE-ALT', readmePath, null, 'the <img> does not declare width="1200" (the natural 16:9 size)');
+        const imgAlt = /<img\b[^>]*\balt="([^"]*)"/.exec(picture);
+        if (!imgAlt) {
+            problem('README-ALT-TEXT', readmePath, null, 'the figure has no <img alt="...">, so it has no text alternative');
+        } else {
+            const altCells = [
+                { pinned: `${groupedInteger(summary.pinned.bootMsMedian)} ms`, go: `${groupedInteger(summary.gotavern.bootMsMedian)} ms`, ratio: formatRatio(summary.pinned.bootMsMedian / summary.gotavern.bootMsMedian), source: 'report.summary.*.bootMsMedian' },
+                { pinned: formatMB(summary.pinned.rssBytesMedian), go: formatMB(summary.gotavern.rssBytesMedian), ratio: formatRatio(summary.pinned.rssBytesMedian / summary.gotavern.rssBytesMedian), source: 'report.summary.*.rssBytesMedian' },
+                { pinned: `${formatMs(summary.pinned.versionMedianMs)} ms`, go: `${formatMs(summary.gotavern.versionMedianMs)} ms`, ratio: formatRatio(summary.pinned.versionMedianMs / summary.gotavern.versionMedianMs), source: 'report.summary.*.versionMedianMs' },
+                { pinned: `${summary.pinned.rootMedianMs.toFixed(2)} ms`, go: `${summary.gotavern.rootMedianMs.toFixed(2)} ms`, ratio: formatRatio(summary.pinned.rootMedianMs / summary.gotavern.rootMedianMs), source: 'report.summary.*.rootMedianMs' },
+            ];
+            for (const cells of altCells) {
+                for (const value of [cells.pinned, cells.go, cells.ratio]) {
+                    if (!imgAlt[1].includes(value)) problem('README-ALT-TEXT-VALUE', readmePath, null, `figure alt text does not carry ${JSON.stringify(value)} recomputed from ${cells.source}; a hand-copied number in the alt text can drift from the recorded artifact`);
+                }
+            }
+        }
+    }
 }
 
 // ---- README and docs/performance.md: the performance table, p95, unit rule, soak, regressions ------

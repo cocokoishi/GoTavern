@@ -57,8 +57,40 @@ test('README table cell that disagrees with the artifact names README-TABLE-PINN
 });
 
 test('a known-stale release token is refused by name', () => {
-    const readme = mutatedCopy('readme-stale.md', 'README.md', text => text.replaceAll('v0.1.0-alpha.19', 'v0.1.0-alpha.15'));
+    const readme = mutatedCopy('readme-stale.md', 'README.md', text => text.replaceAll('v0.1.0-beta.1', 'v0.1.0-alpha.15'));
     expectNamedFailure(runChecker(['--readme', readme]), 'README-STALE-VERSION');
+});
+
+test('a README that lags the newest published release is refused by name', () => {
+    // THE MEASURED DEFECT THIS RULE REPLACES. Until beta.1 the README was compared against a hardcoded
+    // `v0.1.0-alpha.19` default, so a README that still advertised alpha.19 while alpha.20 was published passed.
+    // The expected release is now derived from docs/generated/facts.json (newest tag = alpha.20 at the beta.1
+    // candidate), so an alpha.19 README must go red.
+    const readme = mutatedCopy('readme-lagging-release.md', 'README.md', text => text.replaceAll('v0.1.0-beta.1', 'v0.1.0-alpha.19'));
+    expectNamedFailure(runChecker(['--readme', readme]), 'README-RELEASE-CURRENT');
+});
+
+test('a first-screen version token older than the published release is refused by name', () => {
+    // The Beta's own version-pinned download commands are legal in the first screen (the candidate is newer than
+    // the newest published tag), but an OLDER tag there is the drift the boundary exists to stop.
+    const readme = mutatedCopy('readme-first-screen-stale-version.md', 'README.md', text => {
+        const boundary = text.indexOf('\n## Install');
+        assert.ok(boundary > 0, 'README.md has no "## Install" heading to mutate against');
+        return `${text.slice(0, boundary)}\n\nHistorical page for v0.1.0-alpha.19.\n${text.slice(boundary)}`;
+    });
+    expectNamedFailure(runChecker(['--readme', readme]), 'README-FIRST-SCREEN-VERSION');
+});
+
+test('a README whose install section is not in the first screen is refused by name', () => {
+    // Install-first is a structural contract: the heading must exist AND live above "## Release status".
+    const readme = mutatedCopy('readme-install-renamed.md', 'README.md', text => text.replace('## Install', '## Getting started'));
+    expectNamedFailure(runChecker(['--readme', readme]), 'README-INSTALL-SECTION');
+});
+
+test('a README that drops a drop-in install command is refused by name', () => {
+    // A link to the manual is not the shortest path; the literal pieces the verification executed must be here.
+    const readme = mutatedCopy('readme-no-dropin-command.md', 'README.md', text => text.replaceAll('assets verify', 'assets check'));
+    expectNamedFailure(runChecker(['--readme', readme]), 'README-START-BLOCK');
 });
 
 test('a first screen over the alpha.20 character budget is refused by name', () => {

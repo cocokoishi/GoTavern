@@ -534,6 +534,16 @@ jobs:
         # number in a copy of the baseline each went red naming the metric, the expected value and the field;
         # restoring the file by copy returned it to green. A mutated SVG also fails the byte comparison.
         run: node tools/check-perf-docs.mjs
+      - name: Test the README/perf gate's own negative controls
+        # THE CHECK ABOVE RUNS ON THE REAL TREE, WHICH IS ONLY ITS POSITIVE CONTROL. A gate whose refusals have
+        # never been executed is documentation: this suite tampers temporary copies of one surface at a time,
+        # runs the same checker, and asserts the NAMED assertion that goes red. It existed locally since alpha.20
+        # but was not wired here, so CI never executed a single one of its refusals. Beta.1 changed the README
+        # contract to install-first and added the release-lag rule, so the suite also gains one named case per
+        # new refusal (README-RELEASE-CURRENT, README-FIRST-SCREEN-VERSION, README-INSTALL-SECTION,
+        # README-START-BLOCK) while the untampered tree stays the positive control. It needs no browser, no
+        # network and no service: pure Node over copies in a temp directory, a few seconds.
+        run: node --test tests/docs/check-perf-docs.test.mjs
       - name: Test the oracle execution core
         # The double-run policy and the probe-execution primitive are CONTROL-PLANE code: they decide how many
         # times every probe runs, what happens when a run fails, and whether an empty selection is a success.

@@ -770,3 +770,60 @@ If any of 1-11 cannot be met, the release does not happen and the reason is reco
 as `BLOCKED` with the failing requirement and the run that showed it.
 
 
+## 16.3 The `v0.1.0-beta.1` release bar
+
+`v0.1.0-beta.1` is the **install-first Beta** – the first Beta of the 0.1.0 line. It publishes on the
+**prerelease channel**: the canonical classifier calls a beta-series tag `prerelease` by shape, so
+`releases/latest` and Docker `:latest` keep serving the newest stable release and installing the Beta is an
+explicit, version-pinned decision. It may be tagged only when ALL of the following hold on ONE commit (the
+machine-consumed form is `docs/release-manifest.json` – still the same **14 required gates**, no gate may be
+removed, skipped, renamed or weakened – plus the unified evidence from `scripts/verify-release-gates.mjs`):
+
+1. the full same-SHA wave: all 14 required `workflow_dispatch` runs at the candidate with their manifest
+   selections, verifier PASS 14/14, no spliced run from another SHA, no narrowed dispatch;
+2. the tree carries **no product-behaviour change** against alpha.20: the Go sources, the pinned `public/**`
+   bytes and the pinned baseline (`1.19.0` @ `06bde939…`) are unchanged, and the release says so rather than
+   presenting a documentation change as a fix. Any product change that does land makes this line false and
+   must be re-stated, with its own reproducer, in the same change;
+3. the product page is INSTALL-FIRST and measured: the README leads with `## Install`, carries the literal
+   drop-in commands on both platforms and links the installation manual, states the synthetic scope and the
+   unmet §14 claim beside the install path, stays within the landing-page budget, and the README contract in
+   `tools/check-perf-docs.mjs` enforces exactly that structure with named assertions;
+4. the drop-in claim is verified, not illustrated: an end-to-end run boots the candidate binary from an
+   existing stock SillyTavern tree (bare binary dropped into the tree, no config edit), answers `/version`,
+   `/` and a data request, writes and reads a card via the browser-facing routes, restarts with the write
+   still present, reports its tokenizers from that tree, and a second arm proves the release archive layout
+   (binary + `start.sh` + `src/tokenizers/`) in a fresh directory. The local run is Layer A evidence; the
+   packaged drop-in and prepublish installer gates remain the CI verdict;
+5. the README gate may not pass a stale README again: it derives the newest published tag from
+   `docs/generated/facts.json` instead of a hardcoded version, refuses a README that lags it, refuses a
+   first-screen version token older than it, and the negative controls in `tests/docs/check-perf-docs.test.mjs`
+   are extended to prove each new refusal goes red by name and the untampered tree stays green;
+6. `scripts/classify-version-tag.sh` needs no graduation for this release and receives none:
+   `v0.1.0-beta.1` is `prerelease` by the shape rule, its named test case already asserts it, and every
+   beta/rc neighbour is a named case; adding the tag to `GRADUATED_STABLE_TAGS` would move `latest` and is
+   forbidden for a Beta;
+7. `docs/release-notes-v0.1.0-beta.1.md` passes the curated-notes gate, names the tag, contains
+   `## Known limitations` and `## Checksums`, has no placeholder, and states every unproven item: §14 status
+   (still **NOT MET**, `PRIVATE_NOT_RUN`), darwin/arm64 as **NOT runtime-qualified**, windows/arm64 as
+   build-only, the unchanged alpha.20 disclosed differences, and the fact that a Beta does not close any
+   remaining `PARTIAL` capability row;
+8. the release publishes with `draft=false`, `prerelease=true`, `latest=false`, six canonical archives plus
+   `checksums.txt`, and the body carries the same-SHA evidence table; `releases/latest` still resolves to
+   `v0.1.0-alpha.20` after publication;
+9. Docker publishes `:v0.1.0-beta.1` and leaves `:latest` untouched, with the registry verification job
+   asserting both directions;
+10. after publication the published bytes are verified INDEPENDENTLY: the archives are re-downloaded and
+    checksummed against `checksums.txt`, an unpacked published binary prints `GoTavern v0.1.0-beta.1` on the
+    pinned baseline, a fresh boot answers `/version`, `/` and a data request plus a write/read/restart
+    closure, the version-pinned installer installs the Beta, and a bare (unpinned) installer does **not**
+    install it;
+11. no force push, no tag move (every published tag unchanged), no `--no-verify`, no private or corpus
+    content in any artifact;
+12. `GOAL.md` §14 remains **NOT MET** and no document upgrades it on an agent-created corpus, however large.
+
+If any of 1-11 cannot be met, the release does not happen and the reason is recorded under `docs/beta1/` as
+`BLOCKED` with the failing requirement and the run that showed it.
+
+
+
