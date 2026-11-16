@@ -1,5 +1,15 @@
 # The evidence ledger: one row per user question, and the run that proves it
 
+**beta.1 note (2026-11-16, `v0.1.0-beta.1` published on the prerelease channel).** No row below is upgraded by
+beta.1: the baseline, contract and per-question states are unchanged, and `GOAL.md` §14 stays NOT MET (the
+corpora are agent-authored). The release contains **no product-behaviour change** — the Go sources, pinned
+`public/**` bytes and the SillyTavern `1.19.0` baseline are identical to alpha.20 — and it closes no `PARTIAL`
+row. It is the install-first Beta: the README leads with a drop-in install verified end-to-end on a stock pinned
+tree, and the README gate now refuses a page that lags the newest published tag (the measured defect: the page
+still said alpha.19 while alpha.20 was published, while the gate compared it against a hardcoded alpha.19
+default). `releases/latest` and Docker `:latest` still serve `v0.1.0-alpha.20`. Evidence:
+[`beta1/same-sha-evidence.md`](beta1/same-sha-evidence.md), [`beta1/release-evidence.md`](beta1/release-evidence.md),
+[`beta1/install-verification.md`](beta1/install-verification.md).
 **alpha.20 note (2026-11-09, `v0.1.0-alpha.20` published).** No row below is upgraded by alpha.20: the
 baseline, contract and per-question states are unchanged, and `GOAL.md` §14 stays NOT MET (the corpora are
 agent-authored). alpha.20 is a source-audit and performance round: nine source-audit fixes with RED→GREEN

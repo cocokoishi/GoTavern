@@ -10,7 +10,39 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-10: `v0.1.0-alpha.20` — THE SOURCE-AUDIT AND PERFORMANCE RELEASE
+## Latest checkpoint - 2026-11-16: `v0.1.0-beta.1` — THE INSTALL-FIRST BETA
+
+`v0.1.0-beta.1` is **PUBLISHED** on the prerelease channel: the annotated tag `v0.1.0-beta.1` (object
+`3fefdf33`) peels to the gated candidate `d97c4d3`, and `GoTavern Release` run **43847782239** created
+https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-beta.1 at 2026-11-16T10:21:45Z with `draft=false`,
+`prerelease=true`, `--latest=false`, the six canonical archives plus `checksums.txt`, and the same-SHA 14-gate
+table in its body. The fail-closed verifier passed **14/14** at that commit, and the release rehearsal
+(`workflow_dispatch`, run `43825779165`) had proved the beta channel's directions before the tag existed:
+prerelease classifier, a candidate mirror with deliberately NO `latest/`, both bare installers refused, and a
+tampered archive refused. This round contains **no product-behaviour change** — the Go sources, the pinned
+`public/**` bytes and the SillyTavern `1.19.0` baseline are identical to alpha.20; the shipped binary differs
+only in the version stamped into it. What changed is the first thing a user meets: the README now leads with
+the **drop-in install** (copy the binary plus the archive's `src/tokenizers/` into the SillyTavern folder you
+already run, start it, keep your `config.yaml`, `data/`, cards, chats, presets and extensions), and
+`tools/check-perf-docs.mjs` was re-wired to enforce install-first and to refuse a README that lags the newest
+published tag — the measured defect being that the previous README still advertised alpha.19 while alpha.20 was
+published, and the old rule compared it against a hardcoded alpha.19 default. An independent install lane
+executed the recipe end-to-end on a stock pinned tree and refuted two draft claims before they shipped
+(binary-only drop-in leaves 9 of 23 tokenizer files and silently degrades tokenization; extracting the archive
+in place collides with the user's tree), both recorded in
+[`docs/beta1/install-verification.md`](docs/beta1/install-verification.md). `releases/latest` and Docker
+`:latest` still serve `v0.1.0-alpha.20`, and the published-release smoke (`GoTavern published-release install
+smoke` run `43848356990`, success) asserted both channel directions over real TLS, installed the Beta with
+`install.ps1 -Version`, and booted it with real tokenizer ids. Evidence:
+[`docs/beta1/same-sha-evidence.md`](docs/beta1/same-sha-evidence.md),
+[`docs/beta1/release-evidence.md`](docs/beta1/release-evidence.md),
+[`docs/beta1/install-verification.md`](docs/beta1/install-verification.md), and the published body.
+`GOAL.md` §14 remains **NOT MET** / `PRIVATE_NOT_RUN`; darwin/arm64 is NOT runtime-qualified, windows/arm64 is
+build-only, and a Beta closes no `PARTIAL` capability row.
+
+---
+
+## Checkpoint history - 2026-11-10: `v0.1.0-alpha.20` — THE SOURCE-AUDIT AND PERFORMANCE RELEASE
 
 `v0.1.0-alpha.20` is **PUBLISHED**: the annotated tag `v0.1.0-alpha.20` (object `f25fbb6`) peels to the gated
 candidate `260b790`, and `GoTavern Release` run **42788799794** created
